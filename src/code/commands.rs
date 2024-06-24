@@ -1,19 +1,19 @@
-#[derive(Debug, PartialEq)]
-pub enum Value {
-    Value(u32),
-    Index(u32),
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum CommandValue {
+    Value(usize),
+    Index(usize),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     Inbox,
     Outbox,
-    CopyFrom(Value),
-    CopyTo(Value),
-    Add(Value),
-    Sub(Value),
-    BumpUp(Value),
-    BumpDown(Value),
+    CopyFrom(CommandValue),
+    CopyTo(CommandValue),
+    Add(CommandValue),
+    Sub(CommandValue),
+    BumpUp(CommandValue),
+    BumpDown(CommandValue),
     Jump(String),
     JumpZero(String),
     JumpNegative(String),

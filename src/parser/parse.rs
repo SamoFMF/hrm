@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use crate::code::commands::{Command, Value};
+use crate::code::commands::{Command, CommandValue};
 use crate::code::program::{Program, ProgramBuilder};
 use crate::parser::parse::ParseError::IllegalLine;
 
@@ -29,13 +29,13 @@ pub enum DefineLine {
 /// Returns:
 /// - [Ok(Program)] if code was successfully parsed
 /// - [Err(ParseError)] else
-fn parse_program(code: &str) -> Result<Program, ParseError> {
+pub fn parse_code(code: &str) -> Result<Program, ParseError> {
     let mut program_builder = ProgramBuilder::new();
 
     for line in code.lines() {
         match parse_line(line)? {
-            ParsedLine::Label(label) => program_builder.add_label(label),
-            ParsedLine::Command(command) => program_builder.add_command(command),
+            ParsedLine::Label(label) => program_builder.add_label_ref(label),
+            ParsedLine::Command(command) => program_builder.add_command_ref(command),
             ParsedLine::Define(_) => break,
             _ => {}
         }
@@ -49,6 +49,10 @@ fn parse_program(code: &str) -> Result<Program, ParseError> {
 /// - [Err(ParseError)] else
 fn parse_line(line: &str) -> Result<ParsedLine, ParseError> {
     let line = line.trim();
+
+    if line == "" {
+        return Ok(ParsedLine::Empty);
+    }
 
     if line.starts_with("--") && line.ends_with("--") {
         return Ok(ParsedLine::CommentedCode);
@@ -147,37 +151,37 @@ fn parse_command(line: &str) -> Option<Command> {
                 }
             }
             "COPYFROM" => {
-                match parse_value(arg) {
+                match parse_command_value(arg) {
                     Some(value) => Some(Command::CopyFrom(value)),
                     None => None,
                 }
             }
             "COPYTO" => {
-                match parse_value(arg) {
+                match parse_command_value(arg) {
                     Some(value) => Some(Command::CopyTo(value)),
                     None => None,
                 }
             }
             "ADD" => {
-                match parse_value(arg) {
+                match parse_command_value(arg) {
                     Some(value) => Some(Command::Add(value)),
                     None => None,
                 }
             }
             "SUB" => {
-                match parse_value(arg) {
+                match parse_command_value(arg) {
                     Some(value) => Some(Command::Sub(value)),
                     None => None,
                 }
             }
             "BUMPUP" => {
-                match parse_value(arg) {
+                match parse_command_value(arg) {
                     Some(value) => Some(Command::BumpUp(value)),
                     None => None,
                 }
             }
             "BUMPDN" => {
-                match parse_value(arg) {
+                match parse_command_value(arg) {
                     Some(value) => Some(Command::BumpDown(value)),
                     None => None,
                 }
@@ -212,16 +216,16 @@ fn parse_command(line: &str) -> Option<Command> {
 /// - <code>\[\d+\]</code>
 ///
 /// Returns [None] otherwise.
-fn parse_value(value: &str) -> Option<Value> {
+fn parse_command_value(value: &str) -> Option<CommandValue> {
     let regex = Regex::new(r"^(\[\d+]|\d+)$").unwrap();
     if let Some(captures) = regex.captures(value) {
         let (_, [value]) = captures.extract();
         return if value.starts_with("[") {
             let value = (&value[1..(value.len() - 1)]).parse().unwrap();
-            Some(Value::Index(value))
+            Some(CommandValue::Index(value))
         } else {
             let value = value.parse().unwrap();
-            Some(Value::Value(value))
+            Some(CommandValue::Value(value))
         };
     }
 
@@ -328,11 +332,11 @@ mod tests {
         for command_pair in command_pairs {
             let line = format!("{} {}", command_pair.0, value);
             let command = parse_command(&line).unwrap();
-            assert_eq!(command_pair.1(Value::Value(value)), command);
+            assert_eq!(command_pair.1(CommandValue::Value(value)), command);
 
             let line = format!("{} [{}]", command_pair.0, index);
             let command = parse_command(&line).unwrap();
-            assert_eq!(command_pair.1(Value::Index(index)), command);
+            assert_eq!(command_pair.1(CommandValue::Index(index)), command);
         }
     }
 
@@ -373,20 +377,20 @@ mod tests {
 
     #[test]
     fn parse_value_empty() {
-        let value = parse_value("");
+        let value = parse_command_value("");
         assert!(value.is_none());
     }
 
     #[test]
     fn parse_value_value() {
-        let value = parse_value("123").unwrap();
-        assert_eq!(Value::Value(123), value);
+        let value = parse_command_value("123").unwrap();
+        assert_eq!(CommandValue::Value(123), value);
     }
 
     #[test]
     fn parse_value_index() {
-        let value = parse_value("[123]").unwrap();
-        assert_eq!(Value::Index(123), value);
+        let value = parse_command_value("[123]").unwrap();
+        assert_eq!(CommandValue::Index(123), value);
     }
 
     #[test]
@@ -406,7 +410,7 @@ mod tests {
     }
 
     // region:test-utils
-    fn prepare_commands_value_arg() -> [(&'static str, fn(Value) -> Command); 6] {
+    fn prepare_commands_value_arg() -> [(&'static str, fn(CommandValue) -> Command); 6] {
         [
             ("COPYFROM", Command::CopyFrom),
             ("COPYTO", Command::CopyTo),
