@@ -9,7 +9,7 @@ pub enum ParseError {
     IllegalLine(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParsedLine {
     Comment(u32),
     Label(String),
@@ -19,7 +19,7 @@ pub enum ParsedLine {
     Define(DefineLine),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum DefineLine {
     COMMENT(u32),
     LABEL(u32),
@@ -216,13 +216,13 @@ fn parse_value(value: &str) -> Option<Value> {
     let regex = Regex::new(r"^(\[\d+]|\d+)$").unwrap();
     if let Some(captures) = regex.captures(value) {
         let (_, [value]) = captures.extract();
-        if value.starts_with("[") {
+        return if value.starts_with("[") {
             let value = (&value[1..(value.len() - 1)]).parse().unwrap();
-            return Some(Value::Index(value));
+            Some(Value::Index(value))
         } else {
             let value = value.parse().unwrap();
-            return Some(Value::Value(value));
-        }
+            Some(Value::Value(value))
+        };
     }
 
     None
@@ -256,6 +256,21 @@ mod tests {
             let line = format!("COMMENT {}", arg);
             let comment = parse_comment(&line);
             assert!(comment.is_none());
+        }
+    }
+
+    #[test]
+    fn parse_define_succeeds() {
+        let index: u32 = 123;
+        let define_pairs = [
+            ("COMMENT", DefineLine::COMMENT(index)),
+            ("LABEL", DefineLine::LABEL(index)),
+        ];
+
+        for define_pair in define_pairs {
+            let line = format!("DEFINE {} {}", define_pair.0, index);
+            let define_line = parse_define(&line).unwrap();
+            assert_eq!(define_pair.1, define_line);
         }
     }
 
@@ -308,15 +323,8 @@ mod tests {
     fn parse_command_value_arg_succeeds() {
         let value = 123;
         let index = 456;
-        let command_pairs: [(&str, fn(Value) -> Command); 6] = [
-            ("COPYFROM", Command::CopyFrom),
-            ("COPYTO", Command::CopyTo),
-            ("ADD", Command::Add),
-            ("SUB", Command::Sub),
-            ("BUMPUP", Command::BumpUp),
-            ("BUMPDN", Command::BumpDown),
-        ];
 
+        let command_pairs = prepare_commands_value_arg();
         for command_pair in command_pairs {
             let line = format!("{} {}", command_pair.0, value);
             let command = parse_command(&line).unwrap();
@@ -330,15 +338,7 @@ mod tests {
 
     #[test]
     fn parse_command_value_arg_fails() {
-        let command_pairs: [(&str, fn(Value) -> Command); 6] = [
-            ("COPYFROM", Command::CopyFrom),
-            ("COPYTO", Command::CopyTo),
-            ("ADD", Command::Add),
-            ("SUB", Command::Sub),
-            ("BUMPUP", Command::BumpUp),
-            ("BUMPDN", Command::BumpDown),
-        ];
-
+        let command_pairs = prepare_commands_value_arg();
         for command_pair in command_pairs {
             for arg in ["", "1a", "abc", "D", "[", "[]", "[1a]", "[A]"] {
                 let line = format!("{} {}", command_pair.0, arg);
@@ -351,12 +351,7 @@ mod tests {
     #[test]
     fn parse_command_label_arg_succeeds() {
         let label = "abc";
-        let command_pairs: [(&str, fn(String) -> Command); 3] = [
-            ("JUMP", Command::Jump),
-            ("JUMPZ", Command::JumpZero),
-            ("JUMPN", Command::JumpNegative),
-        ];
-
+        let command_pairs = prepare_commands_label_args();
         for command_pair in command_pairs {
             let line = format!("{} {}", command_pair.0, label);
             let command = parse_command(&line).unwrap();
@@ -366,12 +361,7 @@ mod tests {
 
     #[test]
     fn parse_command_label_arg_fails() {
-        let command_pairs: [(&str, fn(String) -> Command); 3] = [
-            ("JUMP", Command::Jump),
-            ("JUMPZ", Command::JumpZero),
-            ("JUMPN", Command::JumpNegative),
-        ];
-
+        let command_pairs = prepare_commands_label_args();
         for command_pair in command_pairs {
             for arg in ["", "aBc", "A", "1"] {
                 let line = format!("{} {}", command_pair.0, arg);
@@ -414,4 +404,25 @@ mod tests {
             assert!(label.is_none());
         }
     }
+
+    // region:test-utils
+    fn prepare_commands_value_arg() -> [(&'static str, fn(Value) -> Command); 6] {
+        [
+            ("COPYFROM", Command::CopyFrom),
+            ("COPYTO", Command::CopyTo),
+            ("ADD", Command::Add),
+            ("SUB", Command::Sub),
+            ("BUMPUP", Command::BumpUp),
+            ("BUMPDN", Command::BumpDown),
+        ]
+    }
+
+    fn prepare_commands_label_args() -> [(&'static str, fn(String) -> Command); 3] {
+        [
+            ("JUMP", Command::Jump),
+            ("JUMPZ", Command::JumpZero),
+            ("JUMPN", Command::JumpNegative),
+        ]
+    }
+    // endregion
 }
