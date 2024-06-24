@@ -13,6 +13,7 @@ pub enum ProgramError {
 
 #[derive(Debug, PartialEq)]
 pub enum ValidationError {
+    CommandNotAvailable(String),
     CommandIndex(usize),
     MissingLabel(String),
     LabelIndex(usize),
@@ -39,6 +40,11 @@ impl Program {
     pub fn validate(&self, game_state: &GameState) -> Result<(), ProgramError> {
         // Verify commands
         for command in &self.commands {
+            let command_type = command.get_type();
+            if !game_state.is_command_available(&command_type) {
+                return Err(ProgramError::Validation(ValidationError::CommandNotAvailable(command_type)));
+            }
+
             match command {
                 Command::CopyFrom(value) | Command::CopyTo(value)
                 | Command::Add(value) | Command::Sub(value)
@@ -48,7 +54,7 @@ impl Program {
                         CommandValue::Index(index) => { *index }
                     };
 
-                    if idx < 0 || idx >= game_state.get_memory().len() {
+                    if idx >= game_state.get_memory().len() {
                         return Err(ProgramError::Validation(ValidationError::CommandIndex(idx)));
                     }
                 }
@@ -63,7 +69,7 @@ impl Program {
 
         // Verify labels
         for (_, idx) in &self.labels {
-            if *idx < 0 || *idx > self.commands.len() {
+            if *idx > self.commands.len() {
                 return Err(ProgramError::Validation(ValidationError::LabelIndex(*idx)));
             }
         }
@@ -285,6 +291,7 @@ mod tests {
         let game_state = GameStateBuilder::new()
             .memory_dim(5)
             .add_io(GameIO { input: vec![], output: vec![] })
+            .enable_all_commands()
             .build();
 
         let program = ProgramBuilder::new()
@@ -305,6 +312,8 @@ mod tests {
         let game_state = GameStateBuilder::new()
             .memory_dim(dim)
             .add_io(GameIO { input: vec![], output: vec![] })
+            .enable_all_commands()
+            .disable_command("SUB")
             .build();
 
         let validate_results = [
@@ -320,9 +329,12 @@ mod tests {
                 commands: vec![],
                 labels: HashMap::from([(String::from("a"), dim + 1)]),
             }, ProgramError::Validation(ValidationError::LabelIndex(dim + 1))),
+            (Program {
+                commands: vec![Command::Sub(CommandValue::Value(0))],
+                labels: HashMap::from([(String::from("a"), dim + 1)]),
+            }, ProgramError::Validation(ValidationError::CommandNotAvailable(String::from("SUB")))),
         ];
 
-        // program.validate(&game_state).unwrap();
         for validate_result in validate_results {
             let err = match validate_result.0.validate(&game_state) {
                 Ok(_) => panic!("Expected to fail!"),

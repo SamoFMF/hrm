@@ -1,10 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Sub};
+
+use crate::code::commands::ALL_COMMANDS;
 
 #[derive(Debug)]
 pub struct GameState { // todo: add available commands
     ios: Vec<GameIO>,
     memory: Vec<Option<Value>>,
+    available_commands: HashSet<String>,
 }
 
 impl GameState {
@@ -15,12 +18,17 @@ impl GameState {
     pub fn get_memory(&self) -> &Vec<Option<Value>> {
         &self.memory
     }
+
+    pub fn is_command_available(&self, command: &str) -> bool {
+        self.available_commands.contains(command)
+    }
 }
 
 pub struct GameStateBuilder {
     ios: Vec<GameIO>,
     memory: HashMap<usize, Value>,
     memory_dim: Option<usize>,
+    available_commands: HashSet<String>,
 }
 
 impl GameStateBuilder {
@@ -29,6 +37,7 @@ impl GameStateBuilder {
             ios: vec![],
             memory: Default::default(),
             memory_dim: None,
+            available_commands: Default::default(),
         }
     }
 
@@ -47,6 +56,28 @@ impl GameStateBuilder {
         self
     }
 
+    pub fn enable_all_commands(mut self) -> Self {
+        // todo: tests
+        self.available_commands = HashSet::from_iter(
+            ALL_COMMANDS.iter().map(|command| command.to_string())
+        );
+        self
+    }
+
+    pub fn enable_command(mut self, command: &str) -> Self {
+        // todo: tests
+        if ALL_COMMANDS.contains(&command) {
+            self.available_commands.insert(command.to_string());
+        }
+        self
+    }
+
+    pub fn disable_command(mut self, command: &str) -> Self {
+        // todo: tests
+        self.available_commands.remove(command);
+        self
+    }
+
     pub fn build(self) -> GameState {
         if self.ios.is_empty() {
             panic!("No IO values set!");
@@ -58,7 +89,7 @@ impl GameStateBuilder {
         };
 
         for (i, value) in self.memory {
-            if i < 0 || i >= memory.len() {
+            if i >= memory.len() {
                 panic!("Contains memory values outside 0..memory_dim!");
             }
 
@@ -68,6 +99,7 @@ impl GameStateBuilder {
         GameState {
             ios: self.ios,
             memory,
+            available_commands: self.available_commands,
         }
     }
 }
