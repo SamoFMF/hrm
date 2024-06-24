@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub enum Value {
-    Value(i32),
-    Index(i32),
+    Value(u32),
+    Index(u32),
 }
 
 #[derive(Debug, PartialEq)]

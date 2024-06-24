@@ -11,7 +11,7 @@ pub enum ParseError {
 
 #[derive(Debug)]
 pub enum ParsedLine {
-    Comment(i32),
+    Comment(u32),
     Label(String),
     Command(Command),
     Empty,
@@ -74,11 +74,11 @@ fn parse_line(line: &str) -> Result<ParsedLine, ParseError> {
 }
 
 /// Tries to parse line as a comment. Returns:
-/// - [Ok(i32)] if line starts with <code>COMMENT</code> and has an [i32] arg
+/// - [Ok(u32)] if line starts with <code>COMMENT</code> and has an [u32] arg
 /// - [None] else
 ///
 /// Expects line to be trimmed.
-fn parse_comment(line: &str) -> Option<i32> {
+fn parse_comment(line: &str) -> Option<u32> {
     let regex = Regex::new(r"^COMMENT\s+(\d+)$").unwrap();
     if let Some(captures) = regex.captures(line) {
         let (_, [arg]) = captures.extract();
@@ -217,10 +217,10 @@ fn parse_value(value: &str) -> Option<Value> {
     if let Some(captures) = regex.captures(value) {
         let (_, [value]) = captures.extract();
         if value.starts_with("[") {
-            let value: i32 = (&value[1..(value.len() - 1)]).parse().unwrap();
+            let value = (&value[1..(value.len() - 1)]).parse().unwrap();
             return Some(Value::Index(value));
         } else {
-            let value: i32 = value.parse().unwrap();
+            let value = value.parse().unwrap();
             return Some(Value::Value(value));
         }
     }
