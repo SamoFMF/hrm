@@ -1,3 +1,3 @@
 pub mod code;
-pub mod parser;
+pub mod compiler;
 pub mod game;
