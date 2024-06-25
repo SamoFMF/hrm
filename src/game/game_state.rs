@@ -4,7 +4,7 @@ use std::ops::{Add, Sub};
 use crate::code::commands::ALL_COMMANDS;
 
 #[derive(Debug)]
-pub struct GameState { // todo: add available commands
+pub struct GameState {
     ios: Vec<GameIO>,
     memory: Vec<Option<Value>>,
     available_commands: HashSet<String>,
@@ -57,7 +57,6 @@ impl GameStateBuilder {
     }
 
     pub fn enable_all_commands(mut self) -> Self {
-        // todo: tests
         self.available_commands = HashSet::from_iter(
             ALL_COMMANDS.iter().map(|command| command.to_string())
         );
@@ -65,7 +64,6 @@ impl GameStateBuilder {
     }
 
     pub fn enable_command(mut self, command: &str) -> Self {
-        // todo: tests
         if ALL_COMMANDS.contains(&command) {
             self.available_commands.insert(command.to_string());
         }
@@ -73,7 +71,6 @@ impl GameStateBuilder {
     }
 
     pub fn disable_command(mut self, command: &str) -> Self {
-        // todo: tests
         self.available_commands.remove(command);
         self
     }
@@ -140,4 +137,58 @@ impl Sub for Value {
             _ => panic!("Cannot add / sub INT & CHAR"),
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // region:GameStateBuilder
+    #[test]
+    fn enable_all_commands_test() {
+        let game_state = GameStateBuilder::new()
+            .add_io(GameIO { input: vec![], output: vec![] })
+            .memory_dim(0)
+            .enable_all_commands()
+            .build();
+
+        assert_eq!(ALL_COMMANDS.len(), game_state.available_commands.len());
+        for command in ALL_COMMANDS {
+            assert!(game_state.is_command_available(command));
+        }
+    }
+
+    #[test]
+    fn enable_command_test() {
+        let available_command = "SUB";
+        let game_state = GameStateBuilder::new()
+            .add_io(GameIO { input: vec![], output: vec![] })
+            .memory_dim(0)
+            .enable_command(available_command)
+            .build();
+
+        assert!(game_state.is_command_available(available_command));
+
+        ALL_COMMANDS.iter()
+            .filter(|command| **command != available_command)
+            .for_each(|command| assert!(!game_state.is_command_available(*command)));
+    }
+
+    #[test]
+    fn disable_command_test() {
+        let unavailable_command = "SUB";
+        let game_state = GameStateBuilder::new()
+            .add_io(GameIO { input: vec![], output: vec![] })
+            .memory_dim(0)
+            .enable_all_commands()
+            .disable_command(unavailable_command)
+            .build();
+
+        assert!(!game_state.is_command_available(unavailable_command));
+
+        ALL_COMMANDS.iter()
+            .filter(|command| **command != unavailable_command)
+            .for_each(|command| assert!(game_state.is_command_available(*command)));
+    }
+    // endregion
 }
