@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
-use std::ops::{Add, Sub};
 
 use crate::code::commands::ALL_COMMANDS;
+use crate::game::value::Value;
 
 #[derive(Debug)]
-pub struct GameState {
-    ios: Vec<GameIO>,
+pub struct Problem {
+    ios: Vec<ProblemIO>,
     memory: Vec<Option<Value>>,
     available_commands: HashSet<String>,
 }
 
-impl GameState {
-    pub fn get_ios(&self) -> &Vec<GameIO> {
+impl Problem {
+    pub fn get_ios(&self) -> &Vec<ProblemIO> {
         &self.ios
     }
 
@@ -24,14 +24,14 @@ impl GameState {
     }
 }
 
-pub struct GameStateBuilder {
-    ios: Vec<GameIO>,
+pub struct ProblemBuilder {
+    ios: Vec<ProblemIO>,
     memory: HashMap<usize, Value>,
     memory_dim: Option<usize>,
     available_commands: HashSet<String>,
 }
 
-impl GameStateBuilder {
+impl ProblemBuilder {
     pub fn new() -> Self {
         Self {
             ios: vec![],
@@ -41,8 +41,8 @@ impl GameStateBuilder {
         }
     }
 
-    pub fn add_io(mut self, game_io: GameIO) -> Self {
-        self.ios.push(game_io);
+    pub fn add_io(mut self, problem_io: ProblemIO) -> Self {
+        self.ios.push(problem_io);
         self
     }
 
@@ -75,7 +75,7 @@ impl GameStateBuilder {
         self
     }
 
-    pub fn build(self) -> GameState {
+    pub fn build(self) -> Problem {
         if self.ios.is_empty() {
             panic!("No IO values set!");
         }
@@ -93,7 +93,7 @@ impl GameStateBuilder {
             memory[i] = Some(value);
         }
 
-        GameState {
+        Problem {
             ios: self.ios,
             memory,
             available_commands: self.available_commands,
@@ -102,93 +102,61 @@ impl GameStateBuilder {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct GameIO {
+pub struct ProblemIO {
     pub input: Vec<Value>,
     pub output: Vec<Value>,
-}
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Value {
-    INT(i32),
-    CHAR(u8),
-}
-
-impl Add for Value {
-    type Output = Value;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        // todo - might need to implement custom add method that returns Result<Value,?>
-        match (self, rhs) {
-            (Value::INT(lhs), Value::INT(rhs)) => Value::INT(lhs + rhs),
-            (Value::CHAR(lhs), Value::CHAR(rhs)) => Value::INT(lhs as i32 + rhs as i32),
-            _ => panic!("Cannot add / sub INT & CHAR"),
-        }
-    }
-}
-
-impl Sub for Value {
-    type Output = Value;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        // todo - might need to implement custom sub method that returns Result<Value,?>
-        match (self, rhs) {
-            (Value::INT(lhs), Value::INT(rhs)) => Value::INT(lhs - rhs),
-            (Value::CHAR(lhs), Value::CHAR(rhs)) => Value::INT(lhs as i32 - rhs as i32),
-            _ => panic!("Cannot add / sub INT & CHAR"),
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // region:GameStateBuilder
+    // region:ProblemBuilder
     #[test]
     fn enable_all_commands_test() {
-        let game_state = GameStateBuilder::new()
-            .add_io(GameIO { input: vec![], output: vec![] })
+        let problem = ProblemBuilder::new()
+            .add_io(ProblemIO { input: vec![], output: vec![] })
             .memory_dim(0)
             .enable_all_commands()
             .build();
 
-        assert_eq!(ALL_COMMANDS.len(), game_state.available_commands.len());
+        assert_eq!(ALL_COMMANDS.len(), problem.available_commands.len());
         for command in ALL_COMMANDS {
-            assert!(game_state.is_command_available(command));
+            assert!(problem.is_command_available(command));
         }
     }
 
     #[test]
     fn enable_command_test() {
         let available_command = "SUB";
-        let game_state = GameStateBuilder::new()
-            .add_io(GameIO { input: vec![], output: vec![] })
+        let problem = ProblemBuilder::new()
+            .add_io(ProblemIO { input: vec![], output: vec![] })
             .memory_dim(0)
             .enable_command(available_command)
             .build();
 
-        assert!(game_state.is_command_available(available_command));
+        assert!(problem.is_command_available(available_command));
 
         ALL_COMMANDS.iter()
             .filter(|command| **command != available_command)
-            .for_each(|command| assert!(!game_state.is_command_available(*command)));
+            .for_each(|command| assert!(!problem.is_command_available(*command)));
     }
 
     #[test]
     fn disable_command_test() {
         let unavailable_command = "SUB";
-        let game_state = GameStateBuilder::new()
-            .add_io(GameIO { input: vec![], output: vec![] })
+        let problem = ProblemBuilder::new()
+            .add_io(ProblemIO { input: vec![], output: vec![] })
             .memory_dim(0)
             .enable_all_commands()
             .disable_command(unavailable_command)
             .build();
 
-        assert!(!game_state.is_command_available(unavailable_command));
+        assert!(!problem.is_command_available(unavailable_command));
 
         ALL_COMMANDS.iter()
             .filter(|command| **command != unavailable_command)
-            .for_each(|command| assert!(game_state.is_command_available(*command)));
+            .for_each(|command| assert!(problem.is_command_available(*command)));
     }
     // endregion
 }

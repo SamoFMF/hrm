@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::ops::Add;
 
 use crate::code::commands::{Command, CommandValue};
-use crate::game::game_state::{GameIO, GameState, Value};
+use crate::game::problem::{Problem, ProblemIO};
+use crate::game::value::Value;
 
 type Memory = Vec<Option<Value>>;
 
@@ -26,7 +28,8 @@ pub enum RunError {
     IncorrectOutput { expected: Option<Value>, value: Option<Value> },
     CharIndex(Value),
     IndexOutOfRange(Value),
-    CharCompare(Command), // todo: check in-game
+    Add(Command),
+    Sub(Command),
 }
 
 #[derive(Debug)]
@@ -37,11 +40,14 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn validate(&self, game_state: &GameState) -> Result<(), ProgramError> {
+    pub fn validate(&self, problem: &Problem) -> Result<(), ProgramError> {
         // Verify commands
         for command in &self.commands {
+            if *command == Command::End {
+                continue;
+            }
             let command_type = command.get_type();
-            if !game_state.is_command_available(&command_type) {
+            if !problem.is_command_available(&command_type) {
                 return Err(ProgramError::Validation(ValidationError::CommandNotAvailable(command_type)));
             }
 
@@ -54,7 +60,7 @@ impl Program {
                         CommandValue::Index(index) => { *index }
                     };
 
-                    if idx >= game_state.get_memory().len() {
+                    if idx >= problem.get_memory().len() {
                         return Err(ProgramError::Validation(ValidationError::CommandIndex(idx)));
                     }
                 }
@@ -80,22 +86,22 @@ impl Program {
     /// todo: add section for panics:
     /// - can panic if [Program::validate] is not run first, e.g. labels are not guaranteed to exist
     /// and unwrap will panic
-    pub fn run(&self, game_state: &GameState) -> Result<(), RunError> {
-        for game_io in game_state.get_ios() {
-            self.run_io(game_io, game_state.get_memory().clone())?;
+    pub fn run(&self, problem: &Problem) -> Result<(), RunError> {
+        for problem_io in problem.get_ios() {
+            self.run_io(problem_io, problem.get_memory().clone())?;
         }
 
         Ok(())
     }
 
-    fn run_io(&self, game_io: &GameIO, mut memory: Memory) -> Result<(), RunError> {
-        let GameIO { input, output } = game_io;
+    fn run_io(&self, problem_io: &ProblemIO, mut memory: Memory) -> Result<(), RunError> {
+        let ProblemIO { input, output } = problem_io;
         let mut acc = None;
         let mut i_input = 0;
         let mut i_output = 0;
         let mut i_command = 0;
 
-        loop {
+        loop { // todo: replace with while i_command < len & remove END command
             let command = &self.commands[i_command];
             println!("Running command {i_command}: {:?}", command);
             match command {
@@ -139,25 +145,27 @@ impl Program {
                     let value = get_acc(acc, command)?;
                     let index = get_index(command_value, &memory, command)?;
                     let to_add = get_from_memory(memory[index], command)?;
-                    acc = Some(value + to_add);
+                    let sum = value.add(to_add).ok_or(RunError::Add(command.clone()))?;
+                    acc = Some(sum);
                 }
                 Command::Sub(command_value) => {
                     let value = get_acc(acc, command)?;
                     let index = get_index(command_value, &memory, command)?;
-                    let to_add = get_from_memory(memory[index], command)?;
-                    acc = Some(value - to_add);
+                    let to_sub = get_from_memory(memory[index], command)?;
+                    let diff = value.sub(to_sub).ok_or(RunError::Sub(command.clone()))?;
+                    acc = Some(diff);
                 }
                 Command::BumpUp(command_value) => {
                     let index = get_index(command_value, &memory, command)?;
                     let to_bump = get_from_memory(memory[index], command)?;
-                    let to_bump = to_bump + Value::INT(1);
-                    acc = Some(to_bump);
+                    let bumped = to_bump.add(Value::INT(1)).ok_or(RunError::Add(command.clone()))?;
+                    acc = Some(bumped);
                 }
                 Command::BumpDown(command_value) => {
                     let index = get_index(command_value, &memory, command)?;
                     let to_bump = get_from_memory(memory[index], command)?;
-                    let to_bump = to_bump - Value::INT(1);
-                    acc = Some(to_bump);
+                    let bumped = to_bump.sub(Value::INT(1)).ok_or(RunError::Sub(command.clone()))?;
+                    acc = Some(bumped);
                 }
                 Command::Jump(label) => {
                     let index = *self.labels.get(label).unwrap(); // safe if program is validated
@@ -166,28 +174,18 @@ impl Program {
                 }
                 Command::JumpZero(label) => {
                     let value = get_acc(acc, command)?;
-                    match value {
-                        Value::INT(value) => {
-                            if value == 0 {
-                                let index = *self.labels.get(label).unwrap(); // safe if program is validated
-                                i_command = index;
-                                continue;
-                            }
-                        }
-                        Value::CHAR(_) => return Err(RunError::CharCompare(command.clone())),
+                    if value == 0 {
+                        let index = *self.labels.get(label).unwrap(); // safe if program is validated
+                        i_command = index;
+                        continue;
                     }
                 }
                 Command::JumpNegative(label) => {
                     let value = get_acc(acc, command)?;
-                    match value {
-                        Value::INT(value) => {
-                            if value < 0 {
-                                let index = *self.labels.get(label).unwrap(); // safe if program is validated
-                                i_command = index;
-                                continue;
-                            }
-                        }
-                        Value::CHAR(_) => return Err(RunError::CharCompare(command.clone())),
+                    if value < 0 {
+                        let index = *self.labels.get(label).unwrap(); // safe if program is validated
+                        i_command = index;
+                        continue;
                     }
                 }
                 Command::End => break,
@@ -282,15 +280,15 @@ impl ProgramBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::game::game_state::{GameIO, GameStateBuilder};
+    use crate::game::problem::{ProblemBuilder, ProblemIO};
 
     use super::*;
 
     #[test]
     fn validate_succeeds() {
-        let game_state = GameStateBuilder::new()
+        let problem = ProblemBuilder::new()
             .memory_dim(5)
-            .add_io(GameIO { input: vec![], output: vec![] })
+            .add_io(ProblemIO { input: vec![], output: vec![] })
             .enable_all_commands()
             .build();
 
@@ -303,15 +301,15 @@ mod tests {
             .add_command(Command::Jump(String::from("a")))
             .build();
 
-        program.validate(&game_state).unwrap();
+        program.validate(&problem).unwrap();
     }
 
     #[test]
     fn validate_fails() {
         let dim = 5;
-        let game_state = GameStateBuilder::new()
+        let problem = ProblemBuilder::new()
             .memory_dim(dim)
-            .add_io(GameIO { input: vec![], output: vec![] })
+            .add_io(ProblemIO { input: vec![], output: vec![] })
             .enable_all_commands()
             .disable_command("SUB")
             .build();
@@ -336,7 +334,7 @@ mod tests {
         ];
 
         for validate_result in validate_results {
-            let err = match validate_result.0.validate(&game_state) {
+            let err = match validate_result.0.validate(&problem) {
                 Ok(_) => panic!("Expected to fail!"),
                 Err(err) => err,
             };
