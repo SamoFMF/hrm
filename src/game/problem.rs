@@ -5,14 +5,18 @@ use crate::game::value::Value;
 
 #[derive(Debug)]
 pub struct Problem {
+    pub title: String,
+    pub description: String,
     ios: Vec<ProblemIO>,
     memory: Vec<Option<Value>>,
     available_commands: HashSet<String>,
 }
 
 impl Problem {
-    pub fn new(ios: Vec<ProblemIO>, memory: Vec<Option<Value>>, available_commands: HashSet<String>) -> Self {
+    pub fn new(title: String, description: String, ios: Vec<ProblemIO>, memory: Vec<Option<Value>>, available_commands: HashSet<String>) -> Self {
         Self {
+            title,
+            description,
             ios,
             memory,
             available_commands,
@@ -33,6 +37,8 @@ impl Problem {
 }
 
 pub struct ProblemBuilder {
+    title: String,
+    description: String,
     ios: Vec<ProblemIO>,
     memory: HashMap<usize, Value>,
     memory_dim: Option<usize>,
@@ -42,11 +48,23 @@ pub struct ProblemBuilder {
 impl ProblemBuilder {
     pub fn new() -> Self {
         Self {
+            title: String::new(),
+            description: String::new(),
             ios: vec![],
             memory: Default::default(),
             memory_dim: None,
             available_commands: Default::default(),
         }
+    }
+
+    pub fn title(mut self, title: String) -> Self {
+        self.title = title;
+        self
+    }
+
+    pub fn description(mut self, description: String) -> Self {
+        self.description = description;
+        self
     }
 
     pub fn add_io(mut self, problem_io: ProblemIO) -> Self {
@@ -95,7 +113,7 @@ impl ProblemBuilder {
             }
         }
 
-        Problem::new(self.ios, memory, self.available_commands)
+        Problem::new(self.title, self.description, self.ios, memory, self.available_commands)
     }
 }
 

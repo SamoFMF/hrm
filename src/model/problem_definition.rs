@@ -7,6 +7,8 @@ use crate::game::value::Value;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ProblemDefinition {
+    pub title: String,
+    pub description: String,
     pub ios: Vec<ProblemDefinitionIO>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memory: Option<ProblemDefinitionMemory>,
@@ -15,7 +17,10 @@ pub struct ProblemDefinition {
 
 impl Into<Problem> for ProblemDefinition {
     fn into(self) -> Problem {
-        let mut builder = ProblemBuilder::new();
+        let mut builder = ProblemBuilder::new()
+            .title(self.title)
+            .description(self.description);
+
         for problem_io in self.ios {
             builder = builder.add_io(problem_io.into());
         }
@@ -106,6 +111,8 @@ mod tests {
     fn deserialize_problem_definition() {
         let json = "\
         {
+            \"title\": \"Title\",
+            \"description\": \"Description\",
             \"ios\": [
                 {
                   \"input\": [1, 2, 3],
@@ -136,6 +143,8 @@ mod tests {
         let commands = vec![String::from("INBOX"), String::from("OUTBOX")];
 
         ProblemDefinition {
+            title: String::from("Title"),
+            description: String::from("Description"),
             ios: vec![problem_io],
             memory: Some(memory),
             commands,
