@@ -9,3 +9,13 @@ edition = "2021"
 regex = "1.10.5"
 serde = { version = "1.0.203", features = ["derive", "std"] }
 serde_json = { version = "1.0.118", features = ["std"] }
+log = "0.4.22"
+
+[dev-dependencies]
+env_logger = "0.11.3"
+
+[lib]
+name = "hrm"
+
+[[example]]
+name = "simple"

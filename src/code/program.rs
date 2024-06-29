@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::{debug, Level, log_enabled, trace};
+
 use crate::code::commands::{Command, CommandValue};
 use crate::game::problem::{Problem, ProblemIO};
 use crate::game::value::Value;
@@ -40,8 +42,15 @@ pub struct Program {
 
 impl Program {
     pub fn validate(&self, problem: &Problem) -> Result<(), ProgramError> {
+        if log_enabled!(Level::Debug) {
+            debug!("Validating problem");
+        }
+
         // Verify commands
         for command in &self.commands {
+            if log_enabled!(Level::Trace) {
+                trace!("Validating command: {:?}", command);
+            }
             if *command == Command::End {
                 continue;
             }
@@ -74,11 +83,17 @@ impl Program {
 
         // Verify labels
         for (_, idx) in &self.labels {
+            if log_enabled!(Level::Trace) {
+                trace!("Verifying label: {:?}", *idx);
+            }
             if *idx > self.commands.len() {
                 return Err(ProgramError::Validation(ValidationError::LabelIndex(*idx)));
             }
         }
 
+        if log_enabled!(Level::Debug) {
+            debug!("Successfully validated program");
+        }
         Ok(())
     }
 
@@ -86,14 +101,24 @@ impl Program {
     /// - can panic if [Program::validate] is not run first, e.g. labels are not guaranteed to exist
     /// and unwrap will panic
     pub fn run(&self, problem: &Problem) -> Result<(), RunError> {
+        if log_enabled!(Level::Debug) {
+            debug!("Running program");
+        }
         for problem_io in problem.get_ios() {
             self.run_io(problem_io, problem.get_memory().clone())?;
+        }
+
+        if log_enabled!(Level::Debug) {
+            debug!("Successfully finished problem for all IO");
         }
 
         Ok(())
     }
 
     fn run_io(&self, problem_io: &ProblemIO, mut memory: Memory) -> Result<(), RunError> {
+        if log_enabled!(Level::Debug) {
+            debug!("Running program for new IO");
+        }
         let ProblemIO { input, output } = problem_io;
         let mut acc = None;
         let mut i_input = 0;
@@ -102,7 +127,9 @@ impl Program {
 
         loop { // todo: replace with while i_command < len & remove END command
             let command = &self.commands[i_command];
-            println!("Running command {i_command}: {:?}", command);
+            if log_enabled!(Level::Trace) {
+                trace!("Running command {i_command}: {:?}", command);
+            }
             match command {
                 Command::Inbox => {
                     if i_input == input.len() {
@@ -114,6 +141,10 @@ impl Program {
                 }
                 Command::Outbox => {
                     let value = get_acc(acc, command)?;
+
+                    if log_enabled!(Level::Debug) {
+                        debug!("Produced value to outbox: {:?}", value);
+                    }
 
                     if i_output == output.len() {
                         return Err(RunError::IncorrectOutput {
@@ -191,6 +222,10 @@ impl Program {
             }
 
             i_command += 1;
+        }
+
+        if log_enabled!(Level::Debug) {
+            debug!("Program ended");
         }
 
         if i_output == output.len() {
