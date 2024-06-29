@@ -33,9 +33,17 @@ pub enum RunError {
     Sub(Command),
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Score {
+    pub size: usize,
+    pub speed_min: u32,
+    pub speed_max: u32,
+    pub speed_avg: f64,
+}
+
 #[derive(Debug)]
 pub struct Program {
-    // todo: add comments & labels - verify them
+    // todo: add comments & defines - verify them
     commands: Vec<Command>,
     labels: HashMap<String, usize>,
 }
@@ -97,25 +105,51 @@ impl Program {
         Ok(())
     }
 
-    /// todo: add section for panics:
-    /// - can panic if [Program::validate] is not run first, e.g. labels are not guaranteed to exist
-    /// and unwrap will panic
-    pub fn run(&self, problem: &Problem) -> Result<(), RunError> {
+    /// Run code
+    ///
+    /// Run [Program] for given [Problem].
+    ///
+    /// # Panics
+    ///
+    /// Labels are not guaranteed to exist without running [Program::validate], which can cause
+    /// program to panic when unwrapping.
+    pub fn run(&self, problem: &Problem) -> Result<Score, RunError> {
         if log_enabled!(Level::Debug) {
             debug!("Running program");
         }
+
+        let (mut speed_min, mut speed_max, mut speed_avg) = (u32::MAX, 0, 0);
         for problem_io in problem.get_ios() {
-            self.run_io(problem_io, problem.get_memory().clone())?;
+            let speed = self.run_io(problem_io, problem.get_memory().clone())?;
+
+            if log_enabled!(Level::Debug) {
+                debug!("Program ended, speed = {speed}");
+            }
+
+            if speed > speed_max {
+                speed_max = speed;
+            }
+
+            if speed < speed_min {
+                speed_min = speed;
+            }
+
+            speed_avg += speed;
         }
 
         if log_enabled!(Level::Debug) {
             debug!("Successfully finished problem for all IO");
         }
 
-        Ok(())
+        Ok(Score {
+            size: self.commands.len() - 1, // sub END
+            speed_min,
+            speed_max,
+            speed_avg: (speed_avg as f64) / (problem.get_ios().len() as f64),
+        })
     }
 
-    fn run_io(&self, problem_io: &ProblemIO, mut memory: Memory) -> Result<(), RunError> {
+    fn run_io(&self, problem_io: &ProblemIO, mut memory: Memory) -> Result<u32, RunError> {
         if log_enabled!(Level::Debug) {
             debug!("Running program for new IO");
         }
@@ -124,12 +158,15 @@ impl Program {
         let mut i_input = 0;
         let mut i_output = 0;
         let mut i_command = 0;
+        let mut speed = 0;
 
         loop { // todo: replace with while i_command < len & remove END command
+            speed += 1;
             let command = &self.commands[i_command];
             if log_enabled!(Level::Trace) {
                 trace!("Running command {i_command}: {:?}", command);
             }
+
             match command {
                 Command::Inbox => {
                     if i_input == input.len() {
@@ -189,12 +226,14 @@ impl Program {
                     let index = get_index(command_value, &memory, command)?;
                     let to_bump = get_from_memory(memory[index], command)?;
                     let bumped = to_bump.add(Value::Int(1)).ok_or(RunError::Add(command.clone()))?;
+                    memory[index] = Some(bumped);
                     acc = Some(bumped);
                 }
                 Command::BumpDown(command_value) => {
                     let index = get_index(command_value, &memory, command)?;
                     let to_bump = get_from_memory(memory[index], command)?;
                     let bumped = to_bump.sub(Value::Int(1)).ok_or(RunError::Sub(command.clone()))?;
+                    memory[index] = Some(bumped);
                     acc = Some(bumped);
                 }
                 Command::Jump(label) => {
@@ -224,12 +263,8 @@ impl Program {
             i_command += 1;
         }
 
-        if log_enabled!(Level::Debug) {
-            debug!("Program ended");
-        }
-
         if i_output == output.len() {
-            return Ok(());
+            return Ok(speed - 1); // Inbox / End must not be counted
         }
 
         Err(RunError::IncorrectOutput {

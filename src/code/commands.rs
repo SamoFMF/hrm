@@ -35,7 +35,7 @@ impl Command {
             Command::CopyTo(_) => String::from("COPYTO"),
             Command::Add(_) => String::from("ADD"),
             Command::Sub(_) => String::from("SUB"),
-            Command::BumpUp(_) => String::from("BUMUP"),
+            Command::BumpUp(_) => String::from("BUMPUP"),
             Command::BumpDown(_) => String::from("BUMPDN"),
             Command::Jump(_) => String::from("JUMP"),
             Command::JumpZero(_) => String::from("JUMPZ"),

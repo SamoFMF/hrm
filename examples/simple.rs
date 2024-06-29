@@ -20,5 +20,6 @@ fn main() {
     let program = compile_code(&solution).unwrap();
 
     program.validate(&problem).unwrap();
-    program.run(&problem).unwrap();
+    let score = program.run(&problem).unwrap();
+    println!("score = {:?}", score);
 }
