@@ -11,6 +11,14 @@ pub struct Problem {
 }
 
 impl Problem {
+    pub fn new(ios: Vec<ProblemIO>, memory: Vec<Option<Value>>, available_commands: HashSet<String>) -> Self {
+        Self {
+            ios,
+            memory,
+            available_commands,
+        }
+    }
+
     pub fn get_ios(&self) -> &Vec<ProblemIO> {
         &self.ios
     }
@@ -63,9 +71,9 @@ impl ProblemBuilder {
         self
     }
 
-    pub fn enable_command(mut self, command: &str) -> Self {
-        if ALL_COMMANDS.contains(&command) {
-            self.available_commands.insert(command.to_string());
+    pub fn enable_command(mut self, command: String) -> Self {
+        if ALL_COMMANDS.contains(&command.as_str()) {
+            self.available_commands.insert(command);
         }
         self
     }
@@ -76,28 +84,18 @@ impl ProblemBuilder {
     }
 
     pub fn build(self) -> Problem {
-        if self.ios.is_empty() {
-            panic!("No IO values set!");
-        }
-
         let mut memory = match self.memory_dim {
             Some(memory_dim) => vec![None; memory_dim],
-            None => panic!("Memory dimension not set!"),
+            None => vec![],
         };
 
         for (i, value) in self.memory {
-            if i >= memory.len() {
-                panic!("Contains memory values outside 0..memory_dim!");
+            if i < memory.len() {
+                memory[i] = Some(value);
             }
-
-            memory[i] = Some(value);
         }
 
-        Problem {
-            ios: self.ios,
-            memory,
-            available_commands: self.available_commands,
-        }
+        Problem::new(self.ios, memory, self.available_commands)
     }
 }
 
@@ -128,14 +126,14 @@ mod tests {
 
     #[test]
     fn enable_command_test() {
-        let available_command = "SUB";
+        let available_command = String::from("SUB");
         let problem = ProblemBuilder::new()
             .add_io(ProblemIO { input: vec![], output: vec![] })
             .memory_dim(0)
-            .enable_command(available_command)
+            .enable_command(available_command.clone())
             .build();
 
-        assert!(problem.is_command_available(available_command));
+        assert!(problem.is_command_available(&available_command));
 
         ALL_COMMANDS.iter()
             .filter(|command| **command != available_command)

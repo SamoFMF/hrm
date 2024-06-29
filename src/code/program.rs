@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ops::Add;
 
 use crate::code::commands::{Command, CommandValue};
 use crate::game::problem::{Problem, ProblemIO};
@@ -158,13 +157,13 @@ impl Program {
                 Command::BumpUp(command_value) => {
                     let index = get_index(command_value, &memory, command)?;
                     let to_bump = get_from_memory(memory[index], command)?;
-                    let bumped = to_bump.add(Value::INT(1)).ok_or(RunError::Add(command.clone()))?;
+                    let bumped = to_bump.add(Value::Int(1)).ok_or(RunError::Add(command.clone()))?;
                     acc = Some(bumped);
                 }
                 Command::BumpDown(command_value) => {
                     let index = get_index(command_value, &memory, command)?;
                     let to_bump = get_from_memory(memory[index], command)?;
-                    let bumped = to_bump.sub(Value::INT(1)).ok_or(RunError::Sub(command.clone()))?;
+                    let bumped = to_bump.sub(Value::Int(1)).ok_or(RunError::Sub(command.clone()))?;
                     acc = Some(bumped);
                 }
                 Command::Jump(label) => {
@@ -225,14 +224,14 @@ fn get_index(command_value: &CommandValue, memory: &Memory, command: &Command) -
         CommandValue::Index(index) => {
             let index_value = get_from_memory(memory[*index], command)?;
             match index_value {
-                Value::INT(idx) => {
+                Value::Int(idx) => {
                     if idx < 0 || idx as usize >= memory.len() {
                         Err(RunError::IndexOutOfRange(index_value))
                     } else {
                         Ok(idx as usize)
                     }
                 }
-                Value::CHAR(_) => Err(RunError::CharIndex(index_value))
+                Value::Char(_) => Err(RunError::CharIndex(index_value))
             }
         }
     }
