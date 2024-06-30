@@ -4,6 +4,7 @@ use log::{debug, log_enabled, trace, Level};
 
 use crate::code::commands::{command, inbox, outbox, Command, CommandValue};
 use crate::code::game_state::GameState;
+use crate::compiler::compile::Compiler;
 use crate::game::problem::{Problem, ProblemIO};
 use crate::game::value::Value;
 
@@ -192,13 +193,14 @@ impl Program {
             speed: 0,
         };
 
-        let commands: &Vec<Box<dyn command::Command>> = &vec![
-            Box::new(inbox::Inbox),
-            Box::new(outbox::Outbox),
-            Box::new(inbox::Inbox),
-            Box::new(outbox::Outbox),
-            Box::new(inbox::Inbox),
-            Box::new(outbox::Outbox),
+        let compiler = Compiler::default();
+        let commands = vec![
+            compiler.commands[0]("INBOX", "").unwrap(),
+            compiler.commands[1]("OUTBOX", "").unwrap(),
+            compiler.commands[0]("INBOX", "").unwrap(),
+            compiler.commands[1]("OUTBOX", "").unwrap(),
+            compiler.commands[0]("INBOX", "").unwrap(),
+            compiler.commands[1]("OUTBOX", "").unwrap(),
         ];
 
         while game_state.i_command < commands.len() {

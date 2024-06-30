@@ -1,8 +1,13 @@
 use regex::Regex;
 
-use crate::code::commands::{Command, CommandValue};
-use crate::code::program::{Program, ProgramBuilder};
-use crate::compiler::compile::ParseError::IllegalLine;
+use crate::{
+    code::{
+        commands::{command::CommandNew, Command, CommandValue},
+        program::{Program, ProgramBuilder},
+    },
+    commands,
+    compiler::compile::ParseError::IllegalLine,
+};
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
@@ -23,6 +28,18 @@ pub enum ParsedLine {
 pub enum DefineLine {
     COMMENT(u32),
     LABEL(u32),
+}
+
+pub struct Compiler {
+    pub commands: Vec<fn(&str, &str) -> Option<Box<dyn CommandNew>>>,
+}
+
+impl Default for Compiler {
+    fn default() -> Self {
+        Self {
+            commands: commands!(),
+        }
+    }
 }
 
 /// Compile HRM code consisting of instructions (e.g. [Command]) separated by new lines.
@@ -138,72 +155,50 @@ fn try_compile_command(instruction: &str) -> Option<Command> {
     if let Some(captures) = regex.captures(instruction) {
         let (_, [command, arg]) = captures.extract();
         return match command {
-            "INBOX" => {
-                match arg {
-                    "" => Some(Command::Inbox),
-                    &_ => None,
-                }
-            }
-            "OUTBOX" => {
-                match arg {
-                    "" => Some(Command::Outbox),
-                    &_ => None,
-                }
-            }
-            "COPYFROM" => {
-                match try_compile_command_value(arg) {
-                    Some(value) => Some(Command::CopyFrom(value)),
-                    None => None,
-                }
-            }
-            "COPYTO" => {
-                match try_compile_command_value(arg) {
-                    Some(value) => Some(Command::CopyTo(value)),
-                    None => None,
-                }
-            }
-            "ADD" => {
-                match try_compile_command_value(arg) {
-                    Some(value) => Some(Command::Add(value)),
-                    None => None,
-                }
-            }
-            "SUB" => {
-                match try_compile_command_value(arg) {
-                    Some(value) => Some(Command::Sub(value)),
-                    None => None,
-                }
-            }
-            "BUMPUP" => {
-                match try_compile_command_value(arg) {
-                    Some(value) => Some(Command::BumpUp(value)),
-                    None => None,
-                }
-            }
-            "BUMPDN" => {
-                match try_compile_command_value(arg) {
-                    Some(value) => Some(Command::BumpDown(value)),
-                    None => None,
-                }
-            }
-            "JUMP" => {
-                match try_compile_label(arg) {
-                    Some(label) => Some(Command::Jump(label)),
-                    None => None,
-                }
-            }
-            "JUMPZ" => {
-                match try_compile_label(arg) {
-                    Some(label) => Some(Command::JumpZero(label)),
-                    None => None,
-                }
-            }
-            "JUMPN" => {
-                match try_compile_label(arg) {
-                    Some(label) => Some(Command::JumpNegative(label)),
-                    None => None,
-                }
-            }
+            "INBOX" => match arg {
+                "" => Some(Command::Inbox),
+                &_ => None,
+            },
+            "OUTBOX" => match arg {
+                "" => Some(Command::Outbox),
+                &_ => None,
+            },
+            "COPYFROM" => match try_compile_command_value(arg) {
+                Some(value) => Some(Command::CopyFrom(value)),
+                None => None,
+            },
+            "COPYTO" => match try_compile_command_value(arg) {
+                Some(value) => Some(Command::CopyTo(value)),
+                None => None,
+            },
+            "ADD" => match try_compile_command_value(arg) {
+                Some(value) => Some(Command::Add(value)),
+                None => None,
+            },
+            "SUB" => match try_compile_command_value(arg) {
+                Some(value) => Some(Command::Sub(value)),
+                None => None,
+            },
+            "BUMPUP" => match try_compile_command_value(arg) {
+                Some(value) => Some(Command::BumpUp(value)),
+                None => None,
+            },
+            "BUMPDN" => match try_compile_command_value(arg) {
+                Some(value) => Some(Command::BumpDown(value)),
+                None => None,
+            },
+            "JUMP" => match try_compile_label(arg) {
+                Some(label) => Some(Command::Jump(label)),
+                None => None,
+            },
+            "JUMPZ" => match try_compile_label(arg) {
+                Some(label) => Some(Command::JumpZero(label)),
+                None => None,
+            },
+            "JUMPN" => match try_compile_label(arg) {
+                Some(label) => Some(Command::JumpNegative(label)),
+                None => None,
+            },
             &_ => None,
         };
     }
@@ -296,10 +291,7 @@ mod tests {
 
     #[test]
     fn try_compile_command_no_arg_succeeds() {
-        let command_pairs = [
-            ("INBOX", Command::Inbox),
-            ("OUTBOX", Command::Outbox),
-        ];
+        let command_pairs = [("INBOX", Command::Inbox), ("OUTBOX", Command::Outbox)];
 
         for command_pair in command_pairs {
             let command = try_compile_command(command_pair.0).unwrap();
@@ -309,10 +301,7 @@ mod tests {
 
     #[test]
     fn try_compile_command_no_arg_fails() {
-        let command_pairs = [
-            ("INBOX", Command::Inbox),
-            ("OUTBOX", Command::Outbox),
-        ];
+        let command_pairs = [("INBOX", Command::Inbox), ("OUTBOX", Command::Outbox)];
 
         for command_pair in command_pairs {
             for arg in ["1", "a", "42b"] {

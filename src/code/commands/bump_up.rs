@@ -1,6 +1,6 @@
 use crate::{
     code::{
-        commands::{command::Command, CommandValue},
+        commands::{command::CommandNew, CommandValue},
         game_state::GameState,
         program::{
             Program, RunError, {try_get_from_memory, try_get_index},
@@ -15,7 +15,7 @@ const COMMAND: &str = "BUMPUP";
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BumpUp(CommandValue);
 
-impl Command for BumpUp {
+impl CommandNew for BumpUp {
     fn command_static() -> &'static str
     where
         Self: Sized,

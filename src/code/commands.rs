@@ -56,3 +56,66 @@ impl Command {
         }
     }
 }
+
+#[macro_export]
+macro_rules! commands {
+    () => {
+        vec![
+            |cmd, val| {
+                $crate::code::commands::inbox::Inbox::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::outbox::Outbox::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::copy_from::CopyFrom::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::copy_to::CopyTo::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::add::Add::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::sub::Sub::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::bump_up::BumpUp::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::bump_down::BumpDown::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::jump::Jump::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::jump_zero::JumpZero::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+            |cmd, val| {
+                $crate::code::commands::jump_negative::JumpNegative::create(cmd, val).map(|cmd| {
+                    Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
+                })
+            },
+        ];
+    };
+}

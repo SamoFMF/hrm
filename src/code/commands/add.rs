@@ -1,6 +1,6 @@
 use crate::{
     code::{
-        commands::{command::Command, CommandValue},
+        commands::{command::CommandNew, CommandValue},
         game_state::GameState,
         program::{try_get_acc, try_get_from_memory, try_get_index, Program, RunError},
     },
@@ -12,7 +12,7 @@ const COMMAND: &str = "ADD";
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Add(CommandValue);
 
-impl Command for Add {
+impl CommandNew for Add {
     fn command_static() -> &'static str
     where
         Self: Sized,

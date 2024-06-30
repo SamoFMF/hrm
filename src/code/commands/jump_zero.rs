@@ -1,6 +1,6 @@
 use crate::{
     code::{
-        commands::command::Command,
+        commands::command::CommandNew,
         game_state::GameState,
         program::{try_get_acc, Program, RunError},
     },
@@ -12,7 +12,7 @@ const COMMAND: &str = "JUMPZ";
 #[derive(Debug, Clone, PartialEq)]
 pub struct JumpZero(String);
 
-impl Command for JumpZero {
+impl CommandNew for JumpZero {
     fn command_static() -> &'static str
     where
         Self: Sized,

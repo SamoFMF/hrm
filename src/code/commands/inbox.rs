@@ -1,15 +1,27 @@
+use std::cell::RefCell;
+
 use crate::code::{
-    commands::command::Command,
+    commands::command::CommandNew,
     game_state::GameState,
     program::{Program, RunError},
 };
 
 const COMMAND: &str = "INBOX";
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Inbox;
+#[derive(Debug, Clone, PartialEq)]
+pub struct Inbox {
+    is_over: RefCell<bool>,
+}
 
-impl Command for Inbox {
+impl Inbox {
+    pub fn new() -> Self {
+        Self {
+            is_over: RefCell::new(false),
+        }
+    }
+}
+
+impl CommandNew for Inbox {
     fn command_static() -> &'static str
     where
         Self: Sized,
@@ -26,7 +38,7 @@ impl Command for Inbox {
         Self: Sized,
     {
         if command == COMMAND && args.is_empty() {
-            Some(Self)
+            Some(Self::new())
         } else {
             None
         }
@@ -34,6 +46,7 @@ impl Command for Inbox {
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         if game_state.i_input == game_state.input.len() {
+            *self.is_over.borrow_mut() = true;
             return Ok(());
         }
 
@@ -43,7 +56,7 @@ impl Command for Inbox {
     }
 
     fn next(&self, _program: &Program, game_state: &GameState) -> usize {
-        if game_state.i_input == game_state.input.len() {
+        if *self.is_over.borrow() {
             usize::MAX
         } else {
             game_state.i_command + 1
@@ -64,13 +77,13 @@ mod tests {
 
     #[test]
     fn command_test() {
-        assert_eq!(COMMAND, Inbox.command());
+        assert_eq!(COMMAND, Inbox::new().command());
     }
 
     #[test]
     fn create_succeeds() {
         let command = Inbox::create("INBOX", "").unwrap();
-        assert_eq!(Inbox, command);
+        assert_eq!(Inbox::new(), command);
     }
 
     #[test]
@@ -101,7 +114,9 @@ mod tests {
             speed: 0,
         };
 
-        Inbox.execute(&Default::default(), &mut game_state).unwrap();
+        Inbox::new()
+            .execute(&Default::default(), &mut game_state)
+            .unwrap();
         assert_eq!(1, game_state.i_input);
     }
 
@@ -118,7 +133,9 @@ mod tests {
             speed: 0,
         };
 
-        Inbox.execute(&Default::default(), &mut game_state).unwrap();
+        Inbox::new()
+            .execute(&Default::default(), &mut game_state)
+            .unwrap();
         assert_eq!(1, game_state.i_input);
     }
 
@@ -135,11 +152,11 @@ mod tests {
             speed: 0,
         };
 
-        assert_eq!(1, Inbox.next(&Default::default(), &game_state));
+        assert_eq!(1, Inbox::new().next(&Default::default(), &game_state));
     }
 
     #[test]
-    fn next_no_inputs() {
+    fn next_is_over() {
         let game_state = GameState {
             input: &vec![Value::Int(5)],
             output: &vec![],
@@ -151,6 +168,12 @@ mod tests {
             speed: 0,
         };
 
-        assert_eq!(usize::MAX, Inbox.next(&Default::default(), &game_state));
+        assert_eq!(
+            usize::MAX,
+            Inbox {
+                is_over: RefCell::new(true)
+            }
+            .next(&Default::default(), &game_state)
+        );
     }
 }

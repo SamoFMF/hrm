@@ -3,7 +3,7 @@ use crate::code::{
     program::{Program, RunError},
 };
 
-pub trait Command {
+pub trait CommandNew {
     /// Command
     ///
     /// Get command keyword
