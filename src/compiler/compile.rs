@@ -216,7 +216,7 @@ fn try_compile_command(instruction: &str) -> Option<Command> {
 /// - <code>\[\d+\]</code>
 ///
 /// Returns [None] otherwise.
-fn try_compile_command_value(value: &str) -> Option<CommandValue> {
+pub fn try_compile_command_value(value: &str) -> Option<CommandValue> {
     let regex = Regex::new(r"^(\[\d+]|\d+)$").unwrap();
     if let Some(captures) = regex.captures(value) {
         let (_, [value]) = captures.extract();
