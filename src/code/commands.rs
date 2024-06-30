@@ -1,13 +1,14 @@
+pub mod add;
 pub mod command;
-pub mod inbox;
-pub mod outbox;
 pub mod copy_from;
 pub mod copy_to;
+pub mod inbox;
+pub mod outbox;
+pub mod sub;
 
 pub const ALL_COMMANDS: [&str; 11] = [
-    "INBOX", "OUTBOX", "COPYFROM", "COPYTO",
-    "ADD", "SUB", "BUMPUP", "BUMPDN",
-    "JUMP", "JUMPZ", "JUMPN"
+    "INBOX", "OUTBOX", "COPYFROM", "COPYTO", "ADD", "SUB", "BUMPUP", "BUMPDN", "JUMP", "JUMPZ",
+    "JUMPN",
 ];
 
 #[derive(Debug, Copy, Clone, PartialEq)]

@@ -36,7 +36,9 @@ pub enum RunError {
     CharIndex(Value),
     IndexOutOfRange(Value),
     Add(Command),
+    AddNew,
     Sub(Command),
+    SubNew,
 }
 
 #[derive(Debug, PartialEq)]
@@ -197,7 +199,8 @@ impl Program {
                 game_state.i_command
             );
 
-            game_state.i_command = command.execute(&self, &mut game_state)?;
+            command.execute(&self, &mut game_state)?;
+            game_state.i_command = command.next(&self, &game_state);
         }
 
         println!("i_command = {}", game_state.i_command);

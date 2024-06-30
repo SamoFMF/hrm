@@ -30,14 +30,22 @@ impl Command for Inbox {
         }
     }
 
-    fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<usize, RunError> {
+    fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         if game_state.i_input == game_state.input.len() {
-            return Ok(usize::MAX);
+            return Ok(());
         }
 
         game_state.acc = Some(game_state.input[game_state.i_input]);
         game_state.i_input += 1;
-        Ok(game_state.i_command + 1)
+        Ok(())
+    }
+
+    fn next(&self, _program: &Program, game_state: &GameState) -> usize {
+        if game_state.i_input == game_state.input.len() {
+            usize::MAX
+        } else {
+            game_state.i_command + 1
+        }
     }
 }
 
@@ -91,8 +99,7 @@ mod tests {
             speed: 0,
         };
 
-        let i_next = Inbox.execute(&Default::default(), &mut game_state).unwrap();
-        assert_eq!(1, i_next);
+        Inbox.execute(&Default::default(), &mut game_state).unwrap();
         assert_eq!(1, game_state.i_input);
     }
 
@@ -109,8 +116,39 @@ mod tests {
             speed: 0,
         };
 
-        let i_next = Inbox.execute(&Default::default(), &mut game_state).unwrap();
-        assert_eq!(usize::MAX, i_next);
+        Inbox.execute(&Default::default(), &mut game_state).unwrap();
         assert_eq!(1, game_state.i_input);
+    }
+
+    #[test]
+    fn next_succeeds() {
+        let game_state = GameState {
+            input: &vec![Value::Int(5)],
+            output: &vec![],
+            memory: vec![],
+            acc: None,
+            i_input: 0,
+            i_output: 0,
+            i_command: 0,
+            speed: 0,
+        };
+
+        assert_eq!(1, Inbox.next(&Default::default(), &game_state));
+    }
+
+    #[test]
+    fn next_no_inputs() {
+        let game_state = GameState {
+            input: &vec![Value::Int(5)],
+            output: &vec![],
+            memory: vec![],
+            acc: None,
+            i_input: 1,
+            i_output: 0,
+            i_command: 0,
+            speed: 0,
+        };
+
+        assert_eq!(usize::MAX, Inbox.next(&Default::default(), &game_state));
     }
 }

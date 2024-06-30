@@ -35,7 +35,7 @@ impl Command for Outbox {
         }
     }
 
-    fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<usize, RunError> {
+    fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let value = try_get_acc(game_state.acc)?;
 
         if log_enabled!(Level::Debug) {
@@ -57,7 +57,7 @@ impl Command for Outbox {
         }
 
         game_state.i_output += 1;
-        Ok(game_state.i_command + 1)
+        Ok(())
     }
 }
 
@@ -111,10 +111,9 @@ mod tests {
             speed: 0,
         };
 
-        let i_next = Outbox
+        Outbox
             .execute(&Default::default(), &mut game_state)
             .unwrap();
-        assert_eq!(1, i_next);
         assert_eq!(1, game_state.i_output);
     }
 
@@ -162,5 +161,21 @@ mod tests {
             value: Some(Value::Int(5)),
         };
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn next_test() {
+        let game_state = GameState {
+            input: &vec![],
+            output: &vec![],
+            memory: vec![],
+            acc: None,
+            i_input: 0,
+            i_output: 0,
+            i_command: 0,
+            speed: 0,
+        };
+
+        assert_eq!(1, Outbox.next(&Default::default(), &game_state));
     }
 }

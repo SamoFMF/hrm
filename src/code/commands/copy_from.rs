@@ -32,11 +32,11 @@ impl Command for CopyFrom {
         try_compile_command_value(args).map(|command_value| CopyFrom(command_value))
     }
 
-    fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<usize, RunError> {
+    fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let index = try_get_index(&self.0, &game_state.memory)?;
         game_state.acc = Some(try_get_from_memory(game_state.memory[index])?);
 
-        Ok(game_state.i_command + 1)
+        Ok(())
     }
 }
 
@@ -102,16 +102,14 @@ mod tests {
             speed: 0,
         };
 
-        let i_next = CopyFrom(CommandValue::Value(0))
+        CopyFrom(CommandValue::Value(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap();
-        assert_eq!(1, i_next);
         assert_eq!(Value::Int(1), game_state.acc.unwrap());
 
-        let i_next = CopyFrom(CommandValue::Index(0))
+        CopyFrom(CommandValue::Index(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap();
-        assert_eq!(1, i_next);
         assert_eq!(Value::Char('A'), game_state.acc.unwrap());
     }
 
@@ -161,5 +159,24 @@ mod tests {
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
         assert_eq!(RunError::EmptyMemoryNew, result);
+    }
+
+    #[test]
+    fn next_test() {
+        let game_state = GameState {
+            input: &vec![],
+            output: &vec![],
+            memory: vec![],
+            acc: None,
+            i_input: 0,
+            i_output: 0,
+            i_command: 0,
+            speed: 0,
+        };
+
+        assert_eq!(
+            1,
+            CopyFrom(CommandValue::Value(1)).next(&Default::default(), &game_state)
+        );
     }
 }

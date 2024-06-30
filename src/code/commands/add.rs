@@ -1,15 +1,18 @@
-use crate::code::commands::command::Command;
-use crate::code::commands::CommandValue;
-use crate::code::game_state::GameState;
-use crate::code::program::{try_get_acc, try_get_index, Program, RunError};
-use crate::compiler::compile::try_compile_command_value;
+use crate::{
+    code::{
+        commands::{command::Command, CommandValue},
+        game_state::GameState,
+        program::{try_get_acc, try_get_from_memory, try_get_index, Program, RunError},
+    },
+    compiler::compile::try_compile_command_value,
+};
 
-const COMMAND: &str = "COPYTO";
+const COMMAND: &str = "ADD";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct CopyTo(CommandValue);
+pub struct Add(CommandValue);
 
-impl Command for CopyTo {
+impl Command for Add {
     fn command_static() -> &'static str
     where
         Self: Sized,
@@ -18,7 +21,7 @@ impl Command for CopyTo {
     }
 
     fn command(&self) -> &'static str {
-        CopyTo::command_static()
+        Add::command_static()
     }
 
     fn create(command: &str, args: &str) -> Option<Self>
@@ -29,14 +32,15 @@ impl Command for CopyTo {
             return None;
         }
 
-        try_compile_command_value(args).map(|command_value| CopyTo(command_value))
+        try_compile_command_value(args).map(|command_value| Add(command_value))
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let value = try_get_acc(game_state.acc)?;
         let index = try_get_index(&self.0, &game_state.memory)?;
-        game_state.memory[index] = Some(value);
-
+        let to_add = try_get_from_memory(game_state.memory[index])?;
+        let sum = value.add(to_add).ok_or(RunError::AddNew)?;
+        game_state.acc = Some(sum);
         Ok(())
     }
 }
@@ -49,44 +53,44 @@ mod tests {
 
     #[test]
     fn command_static_test() {
-        assert_eq!(COMMAND, CopyTo::command_static());
+        assert_eq!(COMMAND, Add::command_static());
     }
 
     #[test]
     fn command_test() {
-        assert_eq!(COMMAND, CopyTo(CommandValue::Value(5)).command());
+        assert_eq!(COMMAND, Add(CommandValue::Value(5)).command());
     }
 
     #[test]
     fn create_succeeds() {
-        let command = CopyTo::create("COPYTO", "42").unwrap();
-        assert_eq!(CopyTo(CommandValue::Value(42)), command);
+        let command = Add::create("ADD", "42").unwrap();
+        assert_eq!(Add(CommandValue::Value(42)), command);
 
-        let command = CopyTo::create("COPYTO", "[42]").unwrap();
-        assert_eq!(CopyTo(CommandValue::Index(42)), command);
+        let command = Add::create("ADD", "[42]").unwrap();
+        assert_eq!(Add(CommandValue::Index(42)), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = CopyTo::create("INBOX", "");
+        let command = Add::create("INBOX", "");
         assert_eq!(None, command);
 
-        let command = CopyTo::create("COPYFROM", "42");
+        let command = Add::create("SUB", "42");
         assert_eq!(None, command);
 
-        let command = CopyTo::create("COPYTO", "");
+        let command = Add::create("ADD", "");
         assert_eq!(None, command);
 
-        let command = CopyTo::create("COPYTO", "a");
+        let command = Add::create("ADD", "a");
         assert_eq!(None, command);
 
-        let command = CopyTo::create("COPYTO", "a1");
+        let command = Add::create("ADD", "a1");
         assert_eq!(None, command);
 
-        let command = CopyTo::create("COPYTO", " ");
+        let command = Add::create("ADD", " ");
         assert_eq!(None, command);
 
-        let command = CopyTo::create("COPYTO", " 1 ");
+        let command = Add::create("ADD", " 1 ");
         assert_eq!(None, command);
     }
 
@@ -95,7 +99,7 @@ mod tests {
         let mut game_state = GameState {
             input: &vec![],
             output: &vec![],
-            memory: vec![None, None],
+            memory: vec![Some(Value::Int(1)), Some(Value::Int(42))],
             acc: Some(Value::Int(1)),
             i_input: 0,
             i_output: 0,
@@ -103,17 +107,15 @@ mod tests {
             speed: 0,
         };
 
-        CopyTo(CommandValue::Value(0))
+        Add(CommandValue::Value(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap();
-        assert_eq!(Value::Int(1), game_state.memory[0].unwrap());
-        assert_eq!(None, game_state.memory[1]);
+        assert_eq!(Value::Int(2), game_state.acc.unwrap());
 
-        CopyTo(CommandValue::Index(0))
+        Add(CommandValue::Index(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap();
-        assert_eq!(Value::Int(1), game_state.memory[0].unwrap());
-        assert_eq!(Value::Int(1), game_state.memory[1].unwrap());
+        assert_eq!(Value::Int(44), game_state.acc.unwrap());
     }
 
     #[test]
@@ -121,15 +123,15 @@ mod tests {
         let mut game_state = GameState {
             input: &vec![],
             output: &vec![],
-            memory: vec![None],
+            memory: vec![Some(Value::Int(1)), Some(Value::Int(42))],
             acc: None,
-            i_input: 1,
+            i_input: 0,
             i_output: 0,
             i_command: 0,
             speed: 0,
         };
 
-        let result = CopyTo(CommandValue::Value(0))
+        let result = Add(CommandValue::Value(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
         assert_eq!(RunError::EmptyAccNew, result);
@@ -148,17 +150,17 @@ mod tests {
             speed: 0,
         };
 
-        let result = CopyTo(CommandValue::Index(0))
+        let result = Add(CommandValue::Index(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
         assert_eq!(RunError::IndexOutOfRange(Value::Int(5)), result);
 
-        let result = CopyTo(CommandValue::Index(1))
+        let result = Add(CommandValue::Index(1))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
         assert_eq!(RunError::CharIndex(Value::Char('A')), result);
 
-        let result = CopyTo(CommandValue::Index(2))
+        let result = Add(CommandValue::Index(2))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
         assert_eq!(RunError::EmptyMemoryNew, result);
@@ -179,7 +181,7 @@ mod tests {
 
         assert_eq!(
             1,
-            CopyTo(CommandValue::Value(1)).next(&Default::default(), &game_state)
+            Add(CommandValue::Value(1)).next(&Default::default(), &game_state)
         );
     }
 }

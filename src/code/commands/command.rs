@@ -25,5 +25,12 @@ pub trait Command {
     /// Execute
     ///
     /// Execute the command & return the index of the next command.
-    fn execute(&self, program: &Program, game_state: &mut GameState) -> Result<usize, RunError>;
+    fn execute(&self, program: &Program, game_state: &mut GameState) -> Result<(), RunError>;
+
+    /// Next
+    ///
+    /// Get next command index
+    fn next(&self, _program: &Program, game_state: &GameState) -> usize {
+        game_state.i_command + 1
+    }
 }
