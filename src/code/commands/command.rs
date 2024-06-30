@@ -1,5 +1,7 @@
-use crate::code::game_state::GameState;
-use crate::code::program::{Program, RunError};
+use crate::code::{
+    game_state::GameState,
+    program::{Program, RunError},
+};
 
 pub trait Command {
     /// Command

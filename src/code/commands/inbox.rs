@@ -1,6 +1,8 @@
-use crate::code::commands::command::Command;
-use crate::code::game_state::GameState;
-use crate::code::program::{Program, RunError};
+use crate::code::{
+    commands::command::Command,
+    game_state::GameState,
+    program::{Program, RunError},
+};
 
 const COMMAND: &str = "INBOX";
 

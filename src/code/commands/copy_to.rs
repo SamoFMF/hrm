@@ -1,8 +1,11 @@
-use crate::code::commands::command::Command;
-use crate::code::commands::CommandValue;
-use crate::code::game_state::GameState;
-use crate::code::program::{try_get_acc, try_get_index, Program, RunError};
-use crate::compiler::compile::try_compile_command_value;
+use crate::{
+    code::{
+        commands::{command::Command, CommandValue},
+        game_state::GameState,
+        program::{try_get_acc, try_get_index, Program, RunError},
+    },
+    compiler::compile::try_compile_command_value,
+};
 
 const COMMAND: &str = "COPYTO";
 

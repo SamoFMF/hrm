@@ -1,9 +1,9 @@
 use log::{debug, log_enabled, Level};
 
-use crate::code::program::Program;
 use crate::code::{
     commands::command::Command,
     game_state::GameState,
+    program::Program,
     program::{try_get_acc, RunError},
 };
 
