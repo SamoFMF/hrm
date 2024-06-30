@@ -1,9 +1,13 @@
+use std::fmt::Debug;
+
 use crate::code::{
     game_state::GameState,
     program::{Program, RunError},
 };
 
-pub trait CommandNew {
+pub type AnyCommand = Box<dyn CommandNew>;
+
+pub trait CommandNew: Debug {
     /// Command
     ///
     /// Get command keyword

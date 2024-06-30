@@ -116,6 +116,6 @@ macro_rules! commands {
                     Box::new(cmd) as Box<dyn $crate::code::commands::command::CommandNew>
                 })
             },
-        ];
+        ]
     };
 }

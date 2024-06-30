@@ -2,11 +2,17 @@ use std::collections::HashMap;
 
 use log::{debug, log_enabled, trace, Level};
 
-use crate::code::commands::{command, inbox, outbox, Command, CommandValue};
-use crate::code::game_state::GameState;
-use crate::compiler::compile::Compiler;
-use crate::game::problem::{Problem, ProblemIO};
-use crate::game::value::Value;
+use crate::{
+    code::{
+        commands::{command::AnyCommand, Command, CommandValue},
+        game_state::GameState,
+    },
+    compiler::compile::Compiler,
+    game::{
+        problem::{Problem, ProblemIO},
+        value::Value,
+    },
+};
 
 pub type Memory = Vec<Option<Value>>;
 
@@ -439,6 +445,7 @@ fn get_index(
 
 pub struct ProgramBuilder {
     commands: Vec<Command>,
+    commands_new: Vec<AnyCommand>,
     labels: HashMap<String, usize>,
 }
 
@@ -446,6 +453,7 @@ impl ProgramBuilder {
     pub fn new() -> Self {
         Self {
             commands: vec![],
+            commands_new: vec![],
             labels: HashMap::new(),
         }
     }
@@ -456,6 +464,15 @@ impl ProgramBuilder {
 
     pub fn add_command(mut self, command: Command) -> Self {
         self.add_command_ref(command);
+        self
+    }
+
+    pub fn add_command_ref_new(&mut self, command: AnyCommand) {
+        self.commands_new.push(command);
+    }
+
+    pub fn add_command_new(mut self, command: AnyCommand) -> Self {
+        self.add_command_ref_new(command);
         self
     }
 

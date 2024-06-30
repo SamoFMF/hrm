@@ -2,11 +2,13 @@ use regex::Regex;
 
 use crate::{
     code::{
-        commands::{command::CommandNew, Command, CommandValue},
+        commands::{
+            command::{AnyCommand, CommandNew},
+            Command, CommandValue,
+        },
         program::{Program, ProgramBuilder},
     },
     commands,
-    compiler::compile::ParseError::IllegalLine,
 };
 
 #[derive(Debug, PartialEq)]
@@ -14,24 +16,25 @@ pub enum ParseError {
     IllegalLine(String),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum ParsedLine {
     Comment(u32),
     Label(String),
     Command(Command),
+    CommandNew(AnyCommand),
     Empty,
     CommentedCode,
-    Define(DefineLine),
+    Define(DefineInstruction),
 }
 
 #[derive(Debug, PartialEq)]
-pub enum DefineLine {
+pub enum DefineInstruction {
     COMMENT(u32),
     LABEL(u32),
 }
 
 pub struct Compiler {
-    pub commands: Vec<fn(&str, &str) -> Option<Box<dyn CommandNew>>>,
+    pub commands: Vec<fn(&str, &str) -> Option<AnyCommand>>,
 }
 
 impl Default for Compiler {
@@ -39,6 +42,80 @@ impl Default for Compiler {
         Self {
             commands: commands!(),
         }
+    }
+}
+
+impl Compiler {
+    /// Compile HRM code consisting of instructions (e.g. [Command]) separated by new lines.
+    /// Returns:
+    /// - [Ok(Program)] if code was successfully parsed
+    /// - [Err(ParseError)] else
+    pub fn compile(&self, code: &str) -> Result<Program, ParseError> {
+        let mut builder = ProgramBuilder::new();
+
+        for line in code.lines() {
+            match self.compile_instruction_new(line)? {
+                ParsedLine::Label(_) => {}
+                ParsedLine::CommandNew(command) => {
+                    println!("CMD = {:?}", command)
+                }
+                _ => {}
+            }
+        }
+
+        Ok(builder.build())
+    }
+
+    fn compile_instruction_new(&self, instruction: &str) -> Result<ParsedLine, ParseError> {
+        let instruction = instruction.trim();
+
+        if instruction == "" {
+            return Ok(ParsedLine::Empty);
+        }
+
+        if instruction.starts_with("--") && instruction.ends_with("--") {
+            return Ok(ParsedLine::CommentedCode);
+        }
+
+        if let Some(id) = try_compile_comment(instruction) {
+            return Ok(ParsedLine::Comment(id));
+        }
+
+        if let Some(define_instruction) = try_compile_define(instruction) {
+            return Ok(ParsedLine::Define(define_instruction));
+        }
+
+        if let Some(label) = try_compile_new_label(instruction) {
+            return Ok(ParsedLine::Label(label));
+        }
+
+        if let Some(command) = self.try_compile_command(instruction) {
+            return Ok(ParsedLine::CommandNew(command));
+        }
+
+        Err(ParseError::IllegalLine(instruction.to_string()))
+    }
+
+    /// Tries to compile an instruction as a command. Returns:
+    /// - [Ok(Box(CommandNew))] if instruction is a valid command with correct args
+    /// - [None] else
+    ///
+    /// Expects instruction to be trimmed.
+    fn try_compile_command(&self, instruction: &str) -> Option<AnyCommand> {
+        // todo: JUMPa is accepted - assert whitespace between command & arg
+        let regex = Regex::new(r"^([A-Z]+)\s*(.*)$").unwrap();
+        if let Some(captures) = regex.captures(instruction) {
+            let (_, [command, args]) = captures.extract();
+            return self
+                .commands
+                .iter()
+                .map(|cmd_create| cmd_create(command, args))
+                .filter(|cmd_opt| cmd_opt.is_some())
+                .map(|cmd_opt| cmd_opt.unwrap())
+                .next();
+        }
+
+        None
     }
 }
 
@@ -91,7 +168,7 @@ fn compile_instruction(instruction: &str) -> Result<ParsedLine, ParseError> {
         return Ok(ParsedLine::Command(command));
     }
 
-    Err(IllegalLine(line.to_string()))
+    Err(ParseError::IllegalLine(line.to_string()))
 }
 
 /// Tries to compile an instruction as a comment. Returns:
@@ -114,14 +191,14 @@ fn try_compile_comment(instruction: &str) -> Option<u32> {
 /// - [None] else
 ///
 /// Expects instruction to be trimmed.
-fn try_compile_define(instruction: &str) -> Option<DefineLine> {
+fn try_compile_define(instruction: &str) -> Option<DefineInstruction> {
     let regex = Regex::new(r"^DEFINE\s+(COMMENT|LABEL)\s+(\d+)$").unwrap();
     if let Some(captures) = regex.captures(instruction) {
         let (_, [define_type, index]) = captures.extract();
         let index = index.parse().unwrap();
         return match define_type {
-            "COMMENT" => Some(DefineLine::COMMENT(index)),
-            "LABEL" => Some(DefineLine::LABEL(index)),
+            "COMMENT" => Some(DefineInstruction::COMMENT(index)),
+            "LABEL" => Some(DefineInstruction::LABEL(index)),
             &_ => panic!("This cannot occur!"),
         };
     }
@@ -262,8 +339,8 @@ mod tests {
     fn try_compile_define_succeeds() {
         let index: u32 = 123;
         let define_pairs = [
-            ("COMMENT", DefineLine::COMMENT(index)),
-            ("LABEL", DefineLine::LABEL(index)),
+            ("COMMENT", DefineInstruction::COMMENT(index)),
+            ("LABEL", DefineInstruction::LABEL(index)),
         ];
 
         for define_pair in define_pairs {
