@@ -1,4 +1,6 @@
 pub mod add;
+pub mod bump_down;
+pub mod bump_up;
 pub mod command;
 pub mod copy_from;
 pub mod copy_to;
