@@ -5,6 +5,9 @@ pub mod command;
 pub mod copy_from;
 pub mod copy_to;
 pub mod inbox;
+pub mod jump;
+pub mod jump_negative;
+pub mod jump_zero;
 pub mod outbox;
 pub mod sub;
 

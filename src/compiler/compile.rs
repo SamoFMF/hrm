@@ -233,7 +233,7 @@ pub fn try_compile_command_value(value: &str) -> Option<CommandValue> {
 }
 
 /// Returns [Ok(String)] if input matches <code>\[a-z\]+</code>, else returns [None].
-fn try_compile_label(label: &str) -> Option<String> {
+pub fn try_compile_label(label: &str) -> Option<String> {
     let regex = Regex::new(r"^([a-z]+)$").unwrap();
     if let Some(captures) = regex.captures(label) {
         let (_, [label]) = captures.extract();

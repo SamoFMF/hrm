@@ -57,6 +57,18 @@ pub struct Program {
 }
 
 impl Program {
+    /// Get Label
+    ///
+    /// Get label's index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the label does not exist. Will NEVER panic if the program
+    /// is validated with [Program::validate].
+    pub fn get_label(&self, label: &str) -> usize {
+        *self.labels.get(label).unwrap() // safe if program is validated
+    }
+
     pub fn validate(&self, problem: &Problem) -> Result<(), ProgramError> {
         if log_enabled!(Level::Debug) {
             debug!("Validating problem");
@@ -316,14 +328,14 @@ impl Program {
                     game_state.acc = Some(bumped);
                 }
                 Command::Jump(label) => {
-                    let index = *self.labels.get(label).unwrap(); // safe if program is validated
+                    let index = self.get_label(label);
                     game_state.i_command = index;
                     continue;
                 }
                 Command::JumpZero(label) => {
                     let value = get_acc(game_state.acc, command)?;
                     if value == 0 {
-                        let index = *self.labels.get(label).unwrap(); // safe if program is validated
+                        let index = self.get_label(label);
                         game_state.i_command = index;
                         continue;
                     }
