@@ -1,6 +1,6 @@
 use std::{env, fs};
 
-use hrm::compiler::compile::compile_code;
+use hrm::compiler::compile::Compiler;
 use hrm::game::problem::Problem;
 use hrm::model::problem_definition::ProblemDefinition;
 
@@ -17,7 +17,7 @@ fn main() {
 
     let problem: ProblemDefinition = serde_json::from_str(&problem).unwrap();
     let problem: Problem = problem.into();
-    let program = compile_code(&solution).unwrap();
+    let program = Compiler::default().compile(&solution).unwrap();
 
     program.validate(&problem).unwrap();
     let score = program.run(&problem).unwrap();

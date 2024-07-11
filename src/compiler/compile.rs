@@ -117,58 +117,6 @@ impl Compiler {
     }
 }
 
-/// Compile HRM code consisting of instructions (e.g. [Command]) separated by new lines.
-/// Returns:
-/// - [Ok(Program)] if code was successfully parsed
-/// - [Err(ParseError)] else
-pub fn compile_code(code: &str) -> Result<Program, ParseError> {
-    let mut program_builder = ProgramBuilder::new();
-
-    for line in code.lines() {
-        match compile_instruction(line)? {
-            ParsedLine::Label(label) => program_builder.add_label_ref(label),
-            ParsedLine::Command(command) => program_builder.add_command_ref(command),
-            ParsedLine::Define(_) => break,
-            _ => {}
-        }
-    }
-
-    Ok(program_builder.build())
-}
-
-/// Compile an instruction / line of code. Returns:
-/// - [Ok(ParsedLine)] if line contains exactly 1 instruction (e.g [Command], comment etc.)
-/// - [Err(ParseError)] else
-fn compile_instruction(instruction: &str) -> Result<ParsedLine, ParseError> {
-    let line = instruction.trim();
-
-    if line == "" {
-        return Ok(ParsedLine::Empty);
-    }
-
-    if line.starts_with("--") && line.ends_with("--") {
-        return Ok(ParsedLine::CommentedCode);
-    }
-
-    if let Some(id) = try_compile_comment(line) {
-        return Ok(ParsedLine::Comment(id));
-    }
-
-    if let Some(define_line) = try_compile_define(line) {
-        return Ok(ParsedLine::Define(define_line));
-    }
-
-    if let Some(label) = try_compile_new_label(line) {
-        return Ok(ParsedLine::Label(label));
-    }
-
-    if let Some(command) = try_compile_command(line) {
-        return Ok(ParsedLine::Command(command));
-    }
-
-    Err(ParseError::IllegalLine(line.to_string()))
-}
-
 /// Tries to compile an instruction as a comment. Returns:
 /// - [Ok(u32)] if line starts with <code>COMMENT</code> and has an [u32] arg
 /// - [None] else
@@ -214,68 +162,6 @@ fn try_compile_new_label(instruction: &str) -> Option<String> {
     if let Some(captures) = regex.captures(instruction) {
         let (_, [label]) = captures.extract();
         return Some(label.to_string());
-    }
-
-    None
-}
-
-/// Tries to compile an instruction as a command. Returns:
-/// - [Ok(Command)] if instruction is a valid command with correct args
-/// - [None] else
-///
-/// Expects instruction to be trimmed.
-fn try_compile_command(instruction: &str) -> Option<Command> {
-    // todo: JUMPa is accepted - assert whitespace between command & arg
-    let regex = Regex::new(r"^([A-Z]+)\s*(.*)$").unwrap();
-    if let Some(captures) = regex.captures(instruction) {
-        let (_, [command, arg]) = captures.extract();
-        return match command {
-            "INBOX" => match arg {
-                "" => Some(Command::Inbox),
-                &_ => None,
-            },
-            "OUTBOX" => match arg {
-                "" => Some(Command::Outbox),
-                &_ => None,
-            },
-            "COPYFROM" => match try_compile_command_value(arg) {
-                Some(value) => Some(Command::CopyFrom(value)),
-                None => None,
-            },
-            "COPYTO" => match try_compile_command_value(arg) {
-                Some(value) => Some(Command::CopyTo(value)),
-                None => None,
-            },
-            "ADD" => match try_compile_command_value(arg) {
-                Some(value) => Some(Command::Add(value)),
-                None => None,
-            },
-            "SUB" => match try_compile_command_value(arg) {
-                Some(value) => Some(Command::Sub(value)),
-                None => None,
-            },
-            "BUMPUP" => match try_compile_command_value(arg) {
-                Some(value) => Some(Command::BumpUp(value)),
-                None => None,
-            },
-            "BUMPDN" => match try_compile_command_value(arg) {
-                Some(value) => Some(Command::BumpDown(value)),
-                None => None,
-            },
-            "JUMP" => match try_compile_label(arg) {
-                Some(label) => Some(Command::Jump(label)),
-                None => None,
-            },
-            "JUMPZ" => match try_compile_label(arg) {
-                Some(label) => Some(Command::JumpZero(label)),
-                None => None,
-            },
-            "JUMPN" => match try_compile_label(arg) {
-                Some(label) => Some(Command::JumpNegative(label)),
-                None => None,
-            },
-            &_ => None,
-        };
     }
 
     None
@@ -366,16 +252,6 @@ mod tests {
 
     #[test]
     fn try_compile_command_no_arg_succeeds() {
-        let command_pairs = [("INBOX", Command::Inbox), ("OUTBOX", Command::Outbox)];
-
-        for command_pair in command_pairs {
-            let command = try_compile_command(command_pair.0).unwrap();
-            assert_eq!(command_pair.1, command);
-        }
-    }
-
-    #[test]
-    fn try_compile_command_no_arg_succeeds_new() {
         let compiler = Compiler::default();
 
         for cmd in ["INBOX", "OUTBOX"] {
@@ -386,19 +262,6 @@ mod tests {
 
     #[test]
     fn try_compile_command_no_arg_fails() {
-        let command_pairs = [("INBOX", Command::Inbox), ("OUTBOX", Command::Outbox)];
-
-        for command_pair in command_pairs {
-            for arg in ["1", "a", "42b"] {
-                let line = format!("{} {}", command_pair.0, arg);
-                let command = try_compile_command(&line);
-                assert!(command.is_none());
-            }
-        }
-    }
-
-    #[test]
-    fn try_compile_command_no_arg_fails_new() {
         let compiler = Compiler::default();
 
         for cmd in ["INBOX", "OUTBOX"] {
@@ -412,23 +275,6 @@ mod tests {
 
     #[test]
     fn try_compile_command_value_arg_succeeds() {
-        let value = 123;
-        let index = 456;
-
-        let command_pairs = prepare_commands_value_arg();
-        for command_pair in command_pairs {
-            let line = format!("{} {}", command_pair.0, value);
-            let command = try_compile_command(&line).unwrap();
-            assert_eq!(command_pair.1(CommandValue::Value(value)), command);
-
-            let line = format!("{} [{}]", command_pair.0, index);
-            let command = try_compile_command(&line).unwrap();
-            assert_eq!(command_pair.1(CommandValue::Index(index)), command);
-        }
-    }
-
-    #[test]
-    fn try_compile_command_value_arg_succeeds_new() {
         let value = 123;
         let index = 456;
         let compiler = Compiler::default();
@@ -448,22 +294,12 @@ mod tests {
 
     #[test]
     fn try_compile_command_value_arg_fails() {
-        let command_pairs = prepare_commands_value_arg();
-        for command_pair in command_pairs {
-            for arg in ["", "1a", "abc", "D", "[", "[]", "[1a]", "[A]"] {
-                let line = format!("{} {}", command_pair.0, arg);
-                let command = try_compile_command(&line);
-                assert!(command.is_none());
-            }
-        }
-    }
+        let compiler = Compiler::default();
 
-    #[test]
-    fn try_compile_command_value_arg_fails_new() {
         for cmd in ["COPYFROM", "COPYTO", "ADD", "SUB", "BUMPUP", "BUMPDN"] {
             for arg in ["", "1a", "abc", "D", "[", "[]", "[1a]", "[A]"] {
                 let line = format!("{} {}", cmd, arg);
-                let command = try_compile_command(&line);
+                let command = compiler.try_compile_command(&line);
                 assert!(command.is_none());
             }
         }
@@ -471,17 +307,6 @@ mod tests {
 
     #[test]
     fn try_compile_command_label_arg_succeeds() {
-        let label = "abc";
-        let command_pairs = prepare_commands_label_args();
-        for command_pair in command_pairs {
-            let line = format!("{} {}", command_pair.0, label);
-            let command = try_compile_command(&line).unwrap();
-            assert_eq!(command_pair.1(label.to_string()), command);
-        }
-    }
-
-    #[test]
-    fn try_compile_command_label_arg_succeeds_new() {
         let label = "abc";
         let compiler = Compiler::default();
 
@@ -495,18 +320,6 @@ mod tests {
 
     #[test]
     fn try_compile_command_label_arg_fails() {
-        let command_pairs = prepare_commands_label_args();
-        for command_pair in command_pairs {
-            for arg in ["", "aBc", "A", "1"] {
-                let line = format!("{} {}", command_pair.0, arg);
-                let command = try_compile_command(&line);
-                assert!(command.is_none());
-            }
-        }
-    }
-
-    #[test]
-    fn try_compile_command_label_arg_fails_new() {
         let compiler = Compiler::default();
 
         for cmd in ["JUMP", "JUMPZ", "JUMPN"] {
@@ -562,25 +375,6 @@ mod tests {
     fn assert_label(command: &AnyCommand, label: &str) {
         let command = format!("{:?}", command);
         assert!(command.contains(label));
-    }
-
-    fn prepare_commands_value_arg() -> [(&'static str, fn(CommandValue) -> Command); 6] {
-        [
-            ("COPYFROM", Command::CopyFrom),
-            ("COPYTO", Command::CopyTo),
-            ("ADD", Command::Add),
-            ("SUB", Command::Sub),
-            ("BUMPUP", Command::BumpUp),
-            ("BUMPDN", Command::BumpDown),
-        ]
-    }
-
-    fn prepare_commands_label_args() -> [(&'static str, fn(String) -> Command); 3] {
-        [
-            ("JUMP", Command::Jump),
-            ("JUMPZ", Command::JumpZero),
-            ("JUMPN", Command::JumpNegative),
-        ]
     }
     // endregion
 }
