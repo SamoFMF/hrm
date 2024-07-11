@@ -4,7 +4,7 @@ use log::{debug, log_enabled, trace, Level};
 
 use crate::{
     code::{
-        commands::{command::AnyCommand, Command, CommandValue},
+        commands::{command::AnyCommand, CommandValue},
         game_state::GameState,
     },
     game::{
@@ -31,9 +31,7 @@ pub enum ValidationError {
 
 #[derive(Debug, PartialEq)]
 pub enum RunError {
-    EmptyAcc(Command),
     EmptyAccNew,
-    EmptyMemory(Command),
     EmptyMemoryNew,
     IncorrectOutput {
         expected: Option<Value>,
@@ -41,9 +39,7 @@ pub enum RunError {
     },
     CharIndex(Value),
     IndexOutOfRange(Value),
-    Add(Command),
     AddNew,
-    Sub(Command),
     SubNew,
 }
 

@@ -2,10 +2,7 @@ use regex::Regex;
 
 use crate::{
     code::{
-        commands::{
-            command::{AnyCommand, CommandNew},
-            Command, CommandValue,
-        },
+        commands::{command::AnyCommand, CommandValue},
         program::{Program, ProgramBuilder},
     },
     commands,
@@ -20,7 +17,6 @@ pub enum ParseError {
 pub enum ParsedLine {
     Comment(u32),
     Label(String),
-    Command(Command),
     CommandNew(AnyCommand),
     Empty,
     CommentedCode,
@@ -95,7 +91,7 @@ impl Compiler {
     }
 
     /// Tries to compile an instruction as a command. Returns:
-    /// - [Ok(Box(CommandNew))] if instruction is a valid command with correct args
+    /// - [Ok(AnyCommand)] if instruction is a valid command with correct args
     /// - [None] else
     ///
     /// Expects instruction to be trimmed.
