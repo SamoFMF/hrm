@@ -71,7 +71,10 @@ impl Program {
         *self.labels.get(label).unwrap() // safe if program is validated
     }
 
-    pub fn validate_new(&self, problem: &Problem) -> Result<(), ProgramError> {
+    /// Validate
+    ///
+    /// Validate [Program] for the given [Problem].
+    pub fn validate(&self, problem: &Problem) -> Result<(), ProgramError> {
         debug!("Validating problem");
 
         // Validate commands
@@ -293,7 +296,7 @@ mod tests {
             .add_command_new(Box::new(Jump(String::from("a"))))
             .build();
 
-        program.validate_new(&problem).unwrap();
+        program.validate(&problem).unwrap();
     }
 
     #[test]
@@ -341,7 +344,7 @@ mod tests {
         ];
 
         for validate_result in validate_results {
-            let err = match validate_result.0.validate_new(&problem) {
+            let err = match validate_result.0.validate(&problem) {
                 Ok(_) => panic!("Expected to fail!"),
                 Err(err) => err,
             };
