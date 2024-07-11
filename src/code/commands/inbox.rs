@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-
+use std::fmt::{Debug, Formatter};
 use crate::code::{
     commands::command::CommandNew,
     game_state::GameState,
@@ -8,9 +8,15 @@ use crate::code::{
 
 const COMMAND: &str = "INBOX";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Inbox {
     is_over: RefCell<bool>,
+}
+
+impl Debug for Inbox {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Input")
+    }
 }
 
 impl Inbox {

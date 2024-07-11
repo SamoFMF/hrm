@@ -55,10 +55,8 @@ impl Compiler {
 
         for line in code.lines() {
             match self.compile_instruction_new(line)? {
-                ParsedLine::Label(_) => {}
-                ParsedLine::CommandNew(command) => {
-                    println!("CMD = {:?}", command)
-                }
+                ParsedLine::Label(label) => builder.add_label_ref(label),
+                ParsedLine::CommandNew(command) => builder.add_command_ref_new(command),
                 _ => {}
             }
         }
