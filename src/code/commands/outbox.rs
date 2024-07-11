@@ -178,4 +178,14 @@ mod tests {
 
         assert_eq!(1, Outbox.next(&Default::default(), &game_state));
     }
+
+    #[test]
+    fn requires_index_test() {
+        assert!(Outbox.requires_index().is_none());
+    }
+
+    #[test]
+    fn requires_label_test() {
+        assert!(Outbox.requires_label().is_none());
+    }
 }

@@ -11,3 +11,18 @@ pub struct GameState<'a> {
     pub i_command: usize,
     pub speed: u32,
 }
+
+impl<'a> GameState<'a> {
+    pub fn new(input: &'a Vec<Value>, output: &'a Vec<Value>, memory: Memory) -> Self {
+        Self {
+            input,
+            output,
+            memory,
+            acc: None,
+            i_input: 0,
+            i_output: 0,
+            i_command: 0,
+            speed: 0,
+        }
+    }
+}

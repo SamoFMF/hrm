@@ -42,6 +42,13 @@ impl CommandNew for CopyTo {
 
         Ok(())
     }
+
+    fn requires_index(&self) -> Option<usize> {
+        match self.0 {
+            CommandValue::Value(_) => None,
+            CommandValue::Index(idx) => Some(idx),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -184,5 +191,20 @@ mod tests {
             1,
             CopyTo(CommandValue::Value(1)).next(&Default::default(), &game_state)
         );
+    }
+
+    #[test]
+    fn requires_index_test() {
+        let command = CopyTo(CommandValue::Value(42));
+        assert!(command.requires_index().is_none());
+
+        let command = CopyTo(CommandValue::Index(42));
+        assert_eq!(42, command.requires_index().unwrap());
+    }
+
+    #[test]
+    fn requires_label_test() {
+        assert!(CopyTo(CommandValue::Value(42)).requires_label().is_none());
+        assert!(CopyTo(CommandValue::Index(42)).requires_label().is_none());
     }
 }

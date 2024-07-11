@@ -7,7 +7,6 @@ use crate::{
         commands::{command::AnyCommand, Command, CommandValue},
         game_state::GameState,
     },
-    compiler::compile::Compiler,
     game::{
         problem::{Problem, ProblemIO},
         value::Value,
@@ -60,6 +59,7 @@ pub struct Score {
 pub struct Program {
     // todo: add comments & defines - verify them
     commands: Vec<Command>,
+    commands_new: Vec<AnyCommand>,
     labels: HashMap<String, usize>,
 }
 
@@ -74,6 +74,47 @@ impl Program {
     /// is validated with [Program::validate].
     pub fn get_label(&self, label: &str) -> usize {
         *self.labels.get(label).unwrap() // safe if program is validated
+    }
+
+    pub fn validate_new(&self, problem: &Problem) -> Result<(), ProgramError> {
+        debug!("Validating problem");
+
+        // Validate commands
+        for command in &self.commands_new {
+            trace!("Validating command: {:?}", command);
+            let command_type = command.command();
+            if !problem.is_command_available(command_type) {
+                return Err(ProgramError::Validation(
+                    ValidationError::CommandNotAvailable(command_type.to_string()),
+                ));
+            }
+
+            if let Some(idx) = command.requires_index() {
+                if idx >= problem.get_memory().len() {
+                    return Err(ProgramError::Validation(ValidationError::CommandIndex(idx)));
+                }
+            }
+
+            if let Some(label) = command.requires_label() {
+                if !self.labels.contains_key(label) {
+                    return Err(ProgramError::Validation(ValidationError::MissingLabel(
+                        label.to_string(),
+                    )));
+                }
+            }
+        }
+
+        // Validate labels
+        for (label, &idx) in &self.labels {
+            trace!("Validating label: {} => {}", label, idx);
+            if idx > self.commands_new.len() {
+                return Err(ProgramError::Validation(ValidationError::LabelIndex(idx)));
+            }
+        }
+
+        debug!("Successfully validated program");
+
+        Ok(())
     }
 
     pub fn validate(&self, problem: &Problem) -> Result<(), ProgramError> {
@@ -154,7 +195,6 @@ impl Program {
 
         let (mut speed_min, mut speed_max, mut speed_avg) = (u32::MAX, 0, 0);
         for problem_io in problem.get_ios() {
-            // let speed = self.run_io(problem_io, problem.get_memory().clone())?;
             let speed = self.run_io_new(problem_io, problem.get_memory().clone())?;
 
             if log_enabled!(Level::Debug) {
@@ -173,7 +213,7 @@ impl Program {
         }
 
         if log_enabled!(Level::Debug) {
-            debug!("Successfully finished problem for all IO");
+            debug!("Successfully finished problem for all IOs");
         }
 
         Ok(Score {
@@ -188,188 +228,33 @@ impl Program {
         if log_enabled!(Level::Debug) {
             debug!("Running program for new IO");
         }
-        let mut game_state = GameState {
-            input: &problem_io.input,
-            output: &problem_io.output,
-            memory,
-            acc: None,
-            i_input: 0,
-            i_output: 0,
-            i_command: 0,
-            speed: 0,
-        };
+        let mut game_state = GameState::new(&problem_io.input, &problem_io.output, memory);
 
-        let compiler = Compiler::default();
-        let commands = vec![
-            compiler.commands[0]("INBOX", "").unwrap(),
-            compiler.commands[1]("OUTBOX", "").unwrap(),
-            compiler.commands[0]("INBOX", "").unwrap(),
-            compiler.commands[1]("OUTBOX", "").unwrap(),
-            compiler.commands[0]("INBOX", "").unwrap(),
-            compiler.commands[1]("OUTBOX", "").unwrap(),
-        ];
-
-        while game_state.i_command < commands.len() {
+        while game_state.i_command < self.commands_new.len() {
             game_state.speed += 1;
-            let command = &commands[game_state.i_command];
-
-            println!(
-                "Executing: {}, i_command = {}",
-                command.command(),
-                game_state.i_command
-            );
+            let command = &self.commands_new[game_state.i_command];
+            trace!("Running command {}: {:?}", game_state.i_command, command);
 
             command.execute(&self, &mut game_state)?;
             game_state.i_command = command.next(&self, &game_state);
         }
 
-        println!("i_command = {}", game_state.i_command);
         if game_state.i_output == game_state.output.len() {
-            let speed_delta = if game_state.i_command == commands.len() {
+            let speed_delta = if game_state.i_command == self.commands_new.len() {
+                debug!("No more commands to execute");
                 0 // No more commands to be executed
             } else {
+                debug!("No more inputs to consume");
                 1 // Ended on Inbox - remove from count
             };
 
-            return Ok(game_state.speed - speed_delta);
+            Ok(game_state.speed - speed_delta)
+        } else {
+            Err(RunError::IncorrectOutput {
+                expected: Some(game_state.output[game_state.i_output]),
+                value: None,
+            })
         }
-
-        Err(RunError::IncorrectOutput {
-            expected: Some(game_state.output[game_state.i_output]),
-            value: None,
-        })
-    }
-
-    fn run_io(&self, problem_io: &ProblemIO, memory: Memory) -> Result<u32, RunError> {
-        if log_enabled!(Level::Debug) {
-            debug!("Running program for new IO");
-        }
-        let mut game_state = GameState {
-            input: &problem_io.input,
-            output: &problem_io.output,
-            memory,
-            acc: None,
-            i_input: 0,
-            i_output: 0,
-            i_command: 0,
-            speed: 0,
-        };
-
-        loop {
-            game_state.speed += 1;
-            let command = &self.commands[game_state.i_command];
-            if log_enabled!(Level::Trace) {
-                trace!("Running command {}: {:?}", game_state.i_command, command);
-            }
-
-            match command {
-                Command::Inbox => {
-                    if game_state.i_input == game_state.input.len() {
-                        break;
-                    }
-
-                    game_state.acc = Some(game_state.input[game_state.i_input]);
-                    game_state.i_input += 1;
-                }
-                Command::Outbox => {
-                    let value = get_acc(game_state.acc, command)?;
-
-                    if log_enabled!(Level::Debug) {
-                        debug!("Produced value to outbox: {:?}", value);
-                    }
-
-                    if game_state.i_output == game_state.output.len() {
-                        return Err(RunError::IncorrectOutput {
-                            expected: None,
-                            value: game_state.acc,
-                        });
-                    }
-
-                    if value != game_state.output[game_state.i_output] {
-                        return Err(RunError::IncorrectOutput {
-                            expected: Some(game_state.output[game_state.i_output]),
-                            value: Some(value),
-                        });
-                    }
-
-                    game_state.i_output += 1;
-                }
-                Command::CopyFrom(command_value) => {
-                    let index = get_index(command_value, &game_state.memory, command)?;
-                    game_state.acc = Some(get_from_memory(game_state.memory[index], command)?);
-                }
-                Command::CopyTo(command_value) => {
-                    let value = get_acc(game_state.acc, command)?;
-                    let index = get_index(command_value, &game_state.memory, command)?;
-                    game_state.memory[index] = Some(value);
-                }
-                Command::Add(command_value) => {
-                    let value = get_acc(game_state.acc, command)?;
-                    let index = get_index(command_value, &game_state.memory, command)?;
-                    let to_add = get_from_memory(game_state.memory[index], command)?;
-                    let sum = value.add(to_add).ok_or(RunError::Add(command.clone()))?;
-                    game_state.acc = Some(sum);
-                }
-                Command::Sub(command_value) => {
-                    let value = get_acc(game_state.acc, command)?;
-                    let index = get_index(command_value, &game_state.memory, command)?;
-                    let to_sub = get_from_memory(game_state.memory[index], command)?;
-                    let diff = value.sub(to_sub).ok_or(RunError::Sub(command.clone()))?;
-                    game_state.acc = Some(diff);
-                }
-                Command::BumpUp(command_value) => {
-                    let index = get_index(command_value, &game_state.memory, command)?;
-                    let to_bump = get_from_memory(game_state.memory[index], command)?;
-                    let bumped = to_bump
-                        .add(Value::Int(1))
-                        .ok_or(RunError::Add(command.clone()))?;
-                    game_state.memory[index] = Some(bumped);
-                    game_state.acc = Some(bumped);
-                }
-                Command::BumpDown(command_value) => {
-                    let index = get_index(command_value, &game_state.memory, command)?;
-                    let to_bump = get_from_memory(game_state.memory[index], command)?;
-                    let bumped = to_bump
-                        .sub(Value::Int(1))
-                        .ok_or(RunError::Sub(command.clone()))?;
-                    game_state.memory[index] = Some(bumped);
-                    game_state.acc = Some(bumped);
-                }
-                Command::Jump(label) => {
-                    let index = self.get_label(label);
-                    game_state.i_command = index;
-                    continue;
-                }
-                Command::JumpZero(label) => {
-                    let value = get_acc(game_state.acc, command)?;
-                    if value == 0 {
-                        let index = self.get_label(label);
-                        game_state.i_command = index;
-                        continue;
-                    }
-                }
-                Command::JumpNegative(label) => {
-                    let value = get_acc(game_state.acc, command)?;
-                    if value < 0 {
-                        let index = *self.labels.get(label).unwrap(); // safe if program is validated
-                        game_state.i_command = index;
-                        continue;
-                    }
-                }
-                Command::End => break,
-            }
-
-            game_state.i_command += 1;
-        }
-
-        if game_state.i_output == game_state.output.len() {
-            return Ok(game_state.speed - 1); // Inbox / End must not be counted
-        }
-
-        Err(RunError::IncorrectOutput {
-            expected: Some(game_state.output[game_state.i_output]),
-            value: None,
-        })
     }
 }
 
@@ -380,24 +265,10 @@ pub fn try_get_acc(acc: Option<Value>) -> Result<Value, RunError> {
     }
 }
 
-fn get_acc(acc: Option<Value>, command: &Command) -> Result<Value, RunError> {
-    match acc {
-        Some(acc) => Ok(acc),
-        None => Err(RunError::EmptyAcc(command.clone())),
-    }
-}
-
 pub fn try_get_from_memory(memory: Option<Value>) -> Result<Value, RunError> {
     match memory {
         Some(value) => Ok(value),
         None => Err(RunError::EmptyMemoryNew),
-    }
-}
-
-fn get_from_memory(memory: Option<Value>, command: &Command) -> Result<Value, RunError> {
-    match memory {
-        Some(value) => Ok(value),
-        None => Err(RunError::EmptyMemory(command.clone())),
     }
 }
 
@@ -406,29 +277,6 @@ pub fn try_get_index(command_value: &CommandValue, memory: &Memory) -> Result<us
         CommandValue::Value(value) => Ok(*value),
         CommandValue::Index(index) => {
             let index_value = try_get_from_memory(memory[*index])?;
-            match index_value {
-                Value::Int(idx) => {
-                    if idx < 0 || idx as usize >= memory.len() {
-                        Err(RunError::IndexOutOfRange(index_value))
-                    } else {
-                        Ok(idx as usize)
-                    }
-                }
-                Value::Char(_) => Err(RunError::CharIndex(index_value)),
-            }
-        }
-    }
-}
-
-fn get_index(
-    command_value: &CommandValue,
-    memory: &Memory,
-    command: &Command,
-) -> Result<usize, RunError> {
-    match command_value {
-        CommandValue::Value(value) => Ok(*value),
-        CommandValue::Index(index) => {
-            let index_value = get_from_memory(memory[*index], command)?;
             match index_value {
                 Value::Int(idx) => {
                     if idx < 0 || idx as usize >= memory.len() {
@@ -489,6 +337,7 @@ impl ProgramBuilder {
         self.commands.push(Command::End);
         Program {
             commands: self.commands,
+            commands_new: self.commands_new,
             labels: self.labels,
         }
     }
@@ -540,6 +389,7 @@ mod tests {
             (
                 Program {
                     commands: vec![Command::Add(CommandValue::Index(dim + 1))],
+                    commands_new: vec![], // todo
                     labels: Default::default(),
                 },
                 ProgramError::Validation(ValidationError::CommandIndex(dim + 1)),
@@ -547,6 +397,7 @@ mod tests {
             (
                 Program {
                     commands: vec![Command::Jump(String::from("a"))],
+                    commands_new: vec![], // todo
                     labels: Default::default(),
                 },
                 ProgramError::Validation(ValidationError::MissingLabel(String::from("a"))),
@@ -554,6 +405,7 @@ mod tests {
             (
                 Program {
                     commands: vec![],
+                    commands_new: vec![], // todo
                     labels: HashMap::from([(String::from("a"), dim + 1)]),
                 },
                 ProgramError::Validation(ValidationError::LabelIndex(dim + 1)),
@@ -561,6 +413,7 @@ mod tests {
             (
                 Program {
                     commands: vec![Command::Sub(CommandValue::Value(0))],
+                    commands_new: vec![], // todo
                     labels: HashMap::from([(String::from("a"), dim + 1)]),
                 },
                 ProgramError::Validation(ValidationError::CommandNotAvailable(String::from("SUB"))),

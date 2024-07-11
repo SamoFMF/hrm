@@ -55,6 +55,10 @@ impl CommandNew for JumpZero {
             game_state.i_command + 1
         }
     }
+
+    fn requires_label(&self) -> Option<&str> {
+        Some(&self.0)
+    }
 }
 
 #[cfg(test)]
@@ -179,5 +183,16 @@ mod tests {
         game_state.acc = Some(Value::Char('A'));
         let i_next = JumpZero(String::from("a")).next(&program, &game_state);
         assert_eq!(6, i_next);
+    }
+
+    #[test]
+    fn requires_index_test() {
+        assert!(JumpZero(String::new()).requires_index().is_none());
+    }
+
+    #[test]
+    fn requires_label_test() {
+        let command = JumpZero(String::from("a"));
+        assert_eq!("a", command.requires_label().unwrap());
     }
 }

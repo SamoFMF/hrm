@@ -41,6 +41,13 @@ impl CommandNew for CopyFrom {
 
         Ok(())
     }
+
+    fn requires_index(&self) -> Option<usize> {
+        match self.0 {
+            CommandValue::Value(_) => None,
+            CommandValue::Index(idx) => Some(idx),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -181,5 +188,20 @@ mod tests {
             1,
             CopyFrom(CommandValue::Value(1)).next(&Default::default(), &game_state)
         );
+    }
+
+    #[test]
+    fn requires_index_test() {
+        let command = CopyFrom(CommandValue::Value(42));
+        assert!(command.requires_index().is_none());
+
+        let command = CopyFrom(CommandValue::Index(42));
+        assert_eq!(42, command.requires_index().unwrap());
+    }
+
+    #[test]
+    fn requires_label_test() {
+        assert!(CopyFrom(CommandValue::Value(42)).requires_label().is_none());
+        assert!(CopyFrom(CommandValue::Index(42)).requires_label().is_none());
     }
 }

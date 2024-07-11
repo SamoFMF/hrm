@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
+
 use crate::code::{
     commands::command::CommandNew,
     game_state::GameState,
@@ -181,5 +182,15 @@ mod tests {
             }
             .next(&Default::default(), &game_state)
         );
+    }
+
+    #[test]
+    fn requires_index_test() {
+        assert!(Inbox::new().requires_index().is_none());
+    }
+
+    #[test]
+    fn requires_label_test() {
+        assert!(Inbox::new().requires_label().is_none());
     }
 }

@@ -43,6 +43,13 @@ impl CommandNew for Add {
         game_state.acc = Some(sum);
         Ok(())
     }
+
+    fn requires_index(&self) -> Option<usize> {
+        match self.0 {
+            CommandValue::Value(_) => None,
+            CommandValue::Index(idx) => Some(idx),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -183,5 +190,20 @@ mod tests {
             1,
             Add(CommandValue::Value(1)).next(&Default::default(), &game_state)
         );
+    }
+
+    #[test]
+    fn requires_index_test() {
+        let command = Add(CommandValue::Value(42));
+        assert!(command.requires_index().is_none());
+
+        let command = Add(CommandValue::Index(42));
+        assert_eq!(42, command.requires_index().unwrap());
+    }
+
+    #[test]
+    fn requires_label_test() {
+        assert!(Add(CommandValue::Value(42)).requires_label().is_none());
+        assert!(Add(CommandValue::Index(42)).requires_label().is_none());
     }
 }

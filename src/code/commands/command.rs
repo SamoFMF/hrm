@@ -39,4 +39,18 @@ pub trait CommandNew: Debug {
     fn next(&self, _program: &Program, game_state: &GameState) -> usize {
         game_state.i_command + 1
     }
+
+    /// Requires Index
+    ///
+    /// Returns [Some(usize)] if an index must exist for the command to work, else [None].
+    fn requires_index(&self) -> Option<usize> {
+        None
+    }
+
+    /// Requires Label
+    ///
+    /// Returns [Some(&str)] if a label must exist for the command to work, else [None].
+    fn requires_label(&self) -> Option<&str> {
+        None
+    }
 }

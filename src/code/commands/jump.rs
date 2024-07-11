@@ -47,6 +47,10 @@ impl CommandNew for Jump {
     fn next(&self, program: &Program, _game_state: &GameState) -> usize {
         program.get_label(&self.0)
     }
+
+    fn requires_label(&self) -> Option<&str> {
+        Some(&self.0)
+    }
 }
 
 #[cfg(test)]
@@ -113,5 +117,16 @@ mod tests {
 
         let i_next = Jump(String::from("a")).next(&program, &game_state);
         assert_eq!(0, i_next);
+    }
+
+    #[test]
+    fn requires_index_test() {
+        assert!(Jump(String::new()).requires_index().is_none());
+    }
+
+    #[test]
+    fn requires_label_test() {
+        let command = Jump(String::from("a"));
+        assert_eq!("a", command.requires_label().unwrap());
     }
 }
