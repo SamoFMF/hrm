@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn try_compile_new_label_succeeds() {
-        for line in vec!["a:", "abc:"] {
+        for line in ["a:", "abc:"] {
             let label = try_compile_new_label(line).unwrap();
             assert_eq!(&line[..line.len() - 1], label);
         }
@@ -358,7 +358,7 @@ mod tests {
 
     #[test]
     fn try_compile_new_label_fails() {
-        for line in vec!["INBOX", "A:", "aBc:", "a:b", "a: "] {
+        for line in ["INBOX", "A:", "aBc:", "a:b", "a: "] {
             let label = try_compile_new_label(line);
             assert!(label.is_none());
         }
@@ -375,6 +375,16 @@ mod tests {
     }
 
     #[test]
+    fn try_compile_command_no_arg_succeeds_new() {
+        let compiler = Compiler::default();
+
+        for cmd in ["INBOX", "OUTBOX"] {
+            let command = compiler.try_compile_command(cmd).unwrap();
+            assert_eq!(cmd, command.command());
+        }
+    }
+
+    #[test]
     fn try_compile_command_no_arg_fails() {
         let command_pairs = [("INBOX", Command::Inbox), ("OUTBOX", Command::Outbox)];
 
@@ -382,6 +392,19 @@ mod tests {
             for arg in ["1", "a", "42b"] {
                 let line = format!("{} {}", command_pair.0, arg);
                 let command = try_compile_command(&line);
+                assert!(command.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn try_compile_command_no_arg_fails_new() {
+        let compiler = Compiler::default();
+
+        for cmd in ["INBOX", "OUTBOX"] {
+            for arg in ["1", "a", "42b"] {
+                let line = format!("{} {}", cmd, arg);
+                let command = compiler.try_compile_command(&line);
                 assert!(command.is_none());
             }
         }
@@ -405,11 +428,41 @@ mod tests {
     }
 
     #[test]
+    fn try_compile_command_value_arg_succeeds_new() {
+        let value = 123;
+        let index = 456;
+        let compiler = Compiler::default();
+
+        for cmd in ["COPYFROM", "COPYTO", "ADD", "SUB", "BUMPUP", "BUMPDN"] {
+            let line = format!("{} {}", cmd, value);
+            let command = compiler.try_compile_command(&line).unwrap();
+            assert_eq!(cmd, command.command());
+            assert_command_value(&command, CommandValue::Value(value));
+
+            let line = format!("{} [{}]", cmd, index);
+            let command = compiler.try_compile_command(&line).unwrap();
+            assert_eq!(cmd, command.command());
+            assert_command_value(&command, CommandValue::Index(index));
+        }
+    }
+
+    #[test]
     fn try_compile_command_value_arg_fails() {
         let command_pairs = prepare_commands_value_arg();
         for command_pair in command_pairs {
             for arg in ["", "1a", "abc", "D", "[", "[]", "[1a]", "[A]"] {
                 let line = format!("{} {}", command_pair.0, arg);
+                let command = try_compile_command(&line);
+                assert!(command.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn try_compile_command_value_arg_fails_new() {
+        for cmd in ["COPYFROM", "COPYTO", "ADD", "SUB", "BUMPUP", "BUMPDN"] {
+            for arg in ["", "1a", "abc", "D", "[", "[]", "[1a]", "[A]"] {
+                let line = format!("{} {}", cmd, arg);
                 let command = try_compile_command(&line);
                 assert!(command.is_none());
             }
@@ -428,12 +481,38 @@ mod tests {
     }
 
     #[test]
+    fn try_compile_command_label_arg_succeeds_new() {
+        let label = "abc";
+        let compiler = Compiler::default();
+
+        for cmd in ["JUMP", "JUMPZ", "JUMPN"] {
+            let line = format!("{} {}", cmd, label);
+            let command = compiler.try_compile_command(&line).unwrap();
+            assert_eq!(cmd, command.command());
+            assert_label(&command, label);
+        }
+    }
+
+    #[test]
     fn try_compile_command_label_arg_fails() {
         let command_pairs = prepare_commands_label_args();
         for command_pair in command_pairs {
             for arg in ["", "aBc", "A", "1"] {
                 let line = format!("{} {}", command_pair.0, arg);
                 let command = try_compile_command(&line);
+                assert!(command.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn try_compile_command_label_arg_fails_new() {
+        let compiler = Compiler::default();
+
+        for cmd in ["JUMP", "JUMPZ", "JUMPN"] {
+            for arg in ["", "aBc", "A", "1"] {
+                let line = format!("{} {}", cmd, arg);
+                let command = compiler.try_compile_command(&line);
                 assert!(command.is_none());
             }
         }
@@ -474,6 +553,17 @@ mod tests {
     }
 
     // region:test-utils
+    fn assert_command_value(command: &AnyCommand, value: CommandValue) {
+        let command = format!("{:?}", command);
+        let value = format!("{:?}", value);
+        assert!(command.contains(&value));
+    }
+
+    fn assert_label(command: &AnyCommand, label: &str) {
+        let command = format!("{:?}", command);
+        assert!(command.contains(label));
+    }
+
     fn prepare_commands_value_arg() -> [(&'static str, fn(CommandValue) -> Command); 6] {
         [
             ("COPYFROM", Command::CopyFrom),
