@@ -4,7 +4,7 @@ use log::{debug, log_enabled, trace, Level};
 
 use crate::{
     code::{
-        commands::{command::AnyCommand, CommandValue},
+        commands::{AnyCommand, CommandValue},
         game_state::GameState,
     },
     game::{

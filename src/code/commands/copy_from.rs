@@ -1,6 +1,6 @@
 use crate::{
     code::{
-        commands::{command::CommandNew, CommandValue},
+        commands::{Command, CommandValue},
         game_state::GameState,
         program::{try_get_from_memory, try_get_index, Program, RunError},
     },
@@ -12,7 +12,7 @@ const COMMAND: &str = "COPYFROM";
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CopyFrom(pub CommandValue);
 
-impl CommandNew for CopyFrom {
+impl Command for CopyFrom {
     fn command_static() -> &'static str
     where
         Self: Sized,

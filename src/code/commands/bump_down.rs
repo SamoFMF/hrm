@@ -1,6 +1,6 @@
 use crate::{
     code::{
-        commands::{command::CommandNew, CommandValue},
+        commands::{Command, CommandValue},
         game_state::GameState,
         program::{
             Program, RunError, {try_get_from_memory, try_get_index},
@@ -15,7 +15,7 @@ const COMMAND: &str = "BUMPDN";
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BumpDown(pub CommandValue);
 
-impl CommandNew for BumpDown {
+impl Command for BumpDown {
     fn command_static() -> &'static str
     where
         Self: Sized,

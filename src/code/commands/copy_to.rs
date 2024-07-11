@@ -1,6 +1,6 @@
 use crate::{
     code::{
-        commands::{command::CommandNew, CommandValue},
+        commands::{Command, CommandValue},
         game_state::GameState,
         program::{try_get_acc, try_get_index, Program, RunError},
     },
@@ -12,7 +12,7 @@ const COMMAND: &str = "COPYTO";
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CopyTo(pub CommandValue);
 
-impl CommandNew for CopyTo {
+impl Command for CopyTo {
     fn command_static() -> &'static str
     where
         Self: Sized,

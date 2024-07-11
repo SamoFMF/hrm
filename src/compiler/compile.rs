@@ -2,7 +2,7 @@ use regex::Regex;
 
 use crate::{
     code::{
-        commands::{command::AnyCommand, CommandValue},
+        commands::{AnyCommand, CommandValue},
         program::{Program, ProgramBuilder},
     },
     commands,

@@ -1,7 +1,7 @@
 use log::{debug, log_enabled, Level};
 
 use crate::code::{
-    commands::command::CommandNew,
+    commands::Command,
     game_state::GameState,
     program::Program,
     program::{try_get_acc, RunError},
@@ -12,7 +12,7 @@ const COMMAND: &str = "OUTBOX";
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Outbox;
 
-impl CommandNew for Outbox {
+impl Command for Outbox {
     fn command_static() -> &'static str
     where
         Self: Sized,

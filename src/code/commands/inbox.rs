@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 
 use crate::code::{
-    commands::command::CommandNew,
+    commands::Command,
     game_state::GameState,
     program::{Program, RunError},
 };
@@ -28,7 +28,7 @@ impl Inbox {
     }
 }
 
-impl CommandNew for Inbox {
+impl Command for Inbox {
     fn command_static() -> &'static str
     where
         Self: Sized,
