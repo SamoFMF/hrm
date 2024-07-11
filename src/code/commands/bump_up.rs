@@ -13,7 +13,7 @@ use crate::{
 const COMMAND: &str = "BUMPUP";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct BumpUp(CommandValue);
+pub struct BumpUp(pub CommandValue);
 
 impl CommandNew for BumpUp {
     fn command_static() -> &'static str

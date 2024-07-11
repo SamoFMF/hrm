@@ -10,7 +10,7 @@ use crate::{
 const COMMAND: &str = "COPYTO";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct CopyTo(CommandValue);
+pub struct CopyTo(pub CommandValue);
 
 impl CommandNew for CopyTo {
     fn command_static() -> &'static str

@@ -10,7 +10,7 @@ use crate::{
 const COMMAND: &str = "JUMPN";
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct JumpNegative(String);
+pub struct JumpNegative(pub String);
 
 impl CommandNew for JumpNegative {
     fn command_static() -> &'static str

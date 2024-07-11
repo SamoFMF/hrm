@@ -58,8 +58,7 @@ pub struct Score {
 #[derive(Debug, Default)]
 pub struct Program {
     // todo: add comments & defines - verify them
-    commands: Vec<Command>,
-    commands_new: Vec<AnyCommand>,
+    commands: Vec<AnyCommand>,
     labels: HashMap<String, usize>,
 }
 
@@ -80,7 +79,7 @@ impl Program {
         debug!("Validating problem");
 
         // Validate commands
-        for command in &self.commands_new {
+        for command in &self.commands {
             trace!("Validating command: {:?}", command);
             let command_type = command.command();
             if !problem.is_command_available(command_type) {
@@ -107,76 +106,13 @@ impl Program {
         // Validate labels
         for (label, &idx) in &self.labels {
             trace!("Validating label: {} => {}", label, idx);
-            if idx > self.commands_new.len() {
+            if idx > self.commands.len() {
                 return Err(ProgramError::Validation(ValidationError::LabelIndex(idx)));
             }
         }
 
         debug!("Successfully validated program");
 
-        Ok(())
-    }
-
-    pub fn validate(&self, problem: &Problem) -> Result<(), ProgramError> {
-        if log_enabled!(Level::Debug) {
-            debug!("Validating problem");
-        }
-
-        // Verify commands
-        for command in &self.commands {
-            if log_enabled!(Level::Trace) {
-                trace!("Validating command: {:?}", command);
-            }
-            if *command == Command::End {
-                continue;
-            }
-            let command_type = command.get_type();
-            if !problem.is_command_available(&command_type) {
-                return Err(ProgramError::Validation(
-                    ValidationError::CommandNotAvailable(command_type),
-                ));
-            }
-
-            match command {
-                Command::CopyFrom(value)
-                | Command::CopyTo(value)
-                | Command::Add(value)
-                | Command::Sub(value)
-                | Command::BumpUp(value)
-                | Command::BumpDown(value) => {
-                    let idx = match value {
-                        CommandValue::Value(value) => *value,
-                        CommandValue::Index(index) => *index,
-                    };
-
-                    if idx >= problem.get_memory().len() {
-                        return Err(ProgramError::Validation(ValidationError::CommandIndex(idx)));
-                    }
-                }
-                Command::Jump(label) | Command::JumpZero(label) | Command::JumpNegative(label) => {
-                    if !self.labels.contains_key(label) {
-                        return Err(ProgramError::Validation(ValidationError::MissingLabel(
-                            label.clone(),
-                        )));
-                    }
-                }
-                &_ => {}
-            }
-        }
-
-        // Verify labels
-        for (_, idx) in &self.labels {
-            if log_enabled!(Level::Trace) {
-                trace!("Verifying label: {:?}", *idx);
-            }
-            if *idx > self.commands.len() {
-                return Err(ProgramError::Validation(ValidationError::LabelIndex(*idx)));
-            }
-        }
-
-        if log_enabled!(Level::Debug) {
-            debug!("Successfully validated program");
-        }
         Ok(())
     }
 
@@ -217,7 +153,7 @@ impl Program {
         }
 
         Ok(Score {
-            size: self.commands.len() - 1, // sub END
+            size: self.commands.len(),
             speed_min,
             speed_max,
             speed_avg: (speed_avg as f64) / (problem.get_ios().len() as f64),
@@ -230,9 +166,9 @@ impl Program {
         }
         let mut game_state = GameState::new(&problem_io.input, &problem_io.output, memory);
 
-        while game_state.i_command < self.commands_new.len() {
+        while game_state.i_command < self.commands.len() {
             game_state.speed += 1;
-            let command = &self.commands_new[game_state.i_command];
+            let command = &self.commands[game_state.i_command];
             trace!("Running command {}: {:?}", game_state.i_command, command);
 
             command.execute(&self, &mut game_state)?;
@@ -240,7 +176,7 @@ impl Program {
         }
 
         if game_state.i_output == game_state.output.len() {
-            let speed_delta = if game_state.i_command == self.commands_new.len() {
+            let speed_delta = if game_state.i_command == self.commands.len() {
                 debug!("No more commands to execute");
                 0 // No more commands to be executed
             } else {
@@ -292,7 +228,6 @@ pub fn try_get_index(command_value: &CommandValue, memory: &Memory) -> Result<us
 }
 
 pub struct ProgramBuilder {
-    commands: Vec<Command>,
     commands_new: Vec<AnyCommand>,
     labels: HashMap<String, usize>,
 }
@@ -300,19 +235,9 @@ pub struct ProgramBuilder {
 impl ProgramBuilder {
     pub fn new() -> Self {
         Self {
-            commands: vec![],
             commands_new: vec![],
             labels: HashMap::new(),
         }
-    }
-
-    pub fn add_command_ref(&mut self, command: Command) {
-        self.commands.push(command);
-    }
-
-    pub fn add_command(mut self, command: Command) -> Self {
-        self.add_command_ref(command);
-        self
     }
 
     pub fn add_command_ref_new(&mut self, command: AnyCommand) {
@@ -325,7 +250,7 @@ impl ProgramBuilder {
     }
 
     pub fn add_label_ref(&mut self, label: String) {
-        self.labels.insert(label, self.commands.len());
+        self.labels.insert(label, self.commands_new.len());
     }
 
     pub fn add_label(mut self, label: String) -> Self {
@@ -333,11 +258,9 @@ impl ProgramBuilder {
         self
     }
 
-    pub fn build(mut self) -> Program {
-        self.commands.push(Command::End);
+    pub fn build(self) -> Program {
         Program {
-            commands: self.commands,
-            commands_new: self.commands_new,
+            commands: self.commands_new,
             labels: self.labels,
         }
     }
@@ -345,6 +268,11 @@ impl ProgramBuilder {
 
 #[cfg(test)]
 mod tests {
+    use crate::code::commands::add::Add;
+    use crate::code::commands::copy_from::CopyFrom;
+    use crate::code::commands::copy_to::CopyTo;
+    use crate::code::commands::jump::Jump;
+    use crate::code::commands::sub::Sub;
     use crate::game::problem::{ProblemBuilder, ProblemIO};
 
     use super::*;
@@ -362,14 +290,14 @@ mod tests {
 
         let program = ProgramBuilder::new()
             .add_label(String::from("a"))
-            .add_command(Command::CopyFrom(CommandValue::Value(0)))
+            .add_command_new(Box::new(CopyFrom(CommandValue::Value(0))))
             .add_label(String::from("b"))
-            .add_command(Command::CopyTo(CommandValue::Index(4)))
+            .add_command_new(Box::new(CopyTo(CommandValue::Index(4))))
             .add_label(String::from("c"))
-            .add_command(Command::Jump(String::from("a")))
+            .add_command_new(Box::new(Jump(String::from("a"))))
             .build();
 
-        program.validate(&problem).unwrap();
+        program.validate_new(&problem).unwrap();
     }
 
     #[test]
@@ -388,16 +316,14 @@ mod tests {
         let validate_results = [
             (
                 Program {
-                    commands: vec![Command::Add(CommandValue::Index(dim + 1))],
-                    commands_new: vec![], // todo
+                    commands: vec![Box::new(Add(CommandValue::Index(dim + 1)))],
                     labels: Default::default(),
                 },
                 ProgramError::Validation(ValidationError::CommandIndex(dim + 1)),
             ),
             (
                 Program {
-                    commands: vec![Command::Jump(String::from("a"))],
-                    commands_new: vec![], // todo
+                    commands: vec![Box::new(Jump(String::from("a")))],
                     labels: Default::default(),
                 },
                 ProgramError::Validation(ValidationError::MissingLabel(String::from("a"))),
@@ -405,15 +331,13 @@ mod tests {
             (
                 Program {
                     commands: vec![],
-                    commands_new: vec![], // todo
                     labels: HashMap::from([(String::from("a"), dim + 1)]),
                 },
                 ProgramError::Validation(ValidationError::LabelIndex(dim + 1)),
             ),
             (
                 Program {
-                    commands: vec![Command::Sub(CommandValue::Value(0))],
-                    commands_new: vec![], // todo
+                    commands: vec![Box::new(Sub(CommandValue::Value(0)))],
                     labels: HashMap::from([(String::from("a"), dim + 1)]),
                 },
                 ProgramError::Validation(ValidationError::CommandNotAvailable(String::from("SUB"))),
@@ -421,7 +345,7 @@ mod tests {
         ];
 
         for validate_result in validate_results {
-            let err = match validate_result.0.validate(&problem) {
+            let err = match validate_result.0.validate_new(&problem) {
                 Ok(_) => panic!("Expected to fail!"),
                 Err(err) => err,
             };

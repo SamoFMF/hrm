@@ -10,7 +10,7 @@ use crate::{
 const COMMAND: &str = "ADD";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Add(CommandValue);
+pub struct Add(pub CommandValue);
 
 impl CommandNew for Add {
     fn command_static() -> &'static str
