@@ -2,9 +2,9 @@ use crate::{
     code::{
         commands::Command,
         game_state::GameState,
-        program::{try_get_acc, Program, RunError},
+        program::{get_acc, Program, RunError},
     },
-    compiler::compile::try_compile_label,
+    compiler::compile::compile_label,
 };
 
 const COMMAND: &str = "JUMPN";
@@ -32,11 +32,11 @@ impl Command for JumpNegative {
             return None;
         }
 
-        try_compile_label(args).map(|label| JumpNegative(label))
+        compile_label(args).map(|label| JumpNegative(label))
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
-        try_get_acc(game_state.acc).map(|_| ())
+        get_acc(game_state.acc).map(|_| ())
     }
 
     /// Jump To If Negative
@@ -49,7 +49,7 @@ impl Command for JumpNegative {
     /// - if [GameState]`.acc` is [None] - this is prevented by calling [JumpNegative::execute] first
     /// - see [Program::get_label].
     fn next(&self, program: &Program, game_state: &GameState) -> usize {
-        if try_get_acc(game_state.acc).unwrap() < 0 {
+        if get_acc(game_state.acc).unwrap() < 0 {
             program.get_label(&self.0)
         } else {
             game_state.i_command + 1

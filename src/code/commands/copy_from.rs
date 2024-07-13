@@ -2,9 +2,9 @@ use crate::{
     code::{
         commands::{Command, CommandValue},
         game_state::GameState,
-        program::{try_get_from_memory, try_get_index, Program, RunError},
+        program::{get_from_memory, get_index, Program, RunError},
     },
-    compiler::compile::try_compile_command_value,
+    compiler::compile::compile_command_value,
 };
 
 const COMMAND: &str = "COPYFROM";
@@ -32,12 +32,12 @@ impl Command for CopyFrom {
             return None;
         }
 
-        try_compile_command_value(args).map(|command_value| CopyFrom(command_value))
+        compile_command_value(args).map(|command_value| CopyFrom(command_value))
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
-        let index = try_get_index(&self.0, &game_state.memory)?;
-        game_state.acc = Some(try_get_from_memory(game_state.memory[index])?);
+        let index = get_index(&self.0, &game_state.memory)?;
+        game_state.acc = Some(get_from_memory(game_state.memory[index])?);
 
         Ok(())
     }

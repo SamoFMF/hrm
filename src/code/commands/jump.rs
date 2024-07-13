@@ -4,7 +4,7 @@ use crate::{
         game_state::GameState,
         program::{Program, RunError},
     },
-    compiler::compile::try_compile_label,
+    compiler::compile::compile_label,
 };
 
 const COMMAND: &str = "JUMP";
@@ -32,7 +32,7 @@ impl Command for Jump {
             return None;
         }
 
-        try_compile_label(args).map(|label| Jump(label))
+        compile_label(args).map(|label| Jump(label))
     }
 
     fn execute(&self, _program: &Program, _game_state: &mut GameState) -> Result<(), RunError> {

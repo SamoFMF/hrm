@@ -42,6 +42,8 @@ impl Default for Compiler {
 }
 
 impl Compiler {
+    /// Compile
+    ///
     /// Compile HRM code consisting of instructions (e.g. [Command]) separated by new lines.
     /// Returns:
     /// - [Ok(Program)] if code was successfully parsed
@@ -60,6 +62,7 @@ impl Compiler {
         Ok(builder.build())
     }
 
+    // todo: see todo file
     fn compile_instruction_new(&self, instruction: &str) -> Result<ParsedLine, ParseError> {
         let instruction = instruction.trim();
 
@@ -71,31 +74,33 @@ impl Compiler {
             return Ok(ParsedLine::CommentedCode);
         }
 
-        if let Some(id) = try_compile_comment(instruction) {
+        if let Some(id) = compile_comment(instruction) {
             return Ok(ParsedLine::Comment(id));
         }
 
-        if let Some(define_instruction) = try_compile_define(instruction) {
+        if let Some(define_instruction) = compile_define(instruction) {
             return Ok(ParsedLine::Define(define_instruction));
         }
 
-        if let Some(label) = try_compile_new_label(instruction) {
+        if let Some(label) = compile_new_label(instruction) {
             return Ok(ParsedLine::Label(label));
         }
 
-        if let Some(command) = self.try_compile_command(instruction) {
+        if let Some(command) = self.compile_command(instruction) {
             return Ok(ParsedLine::CommandNew(command));
         }
 
         Err(ParseError::IllegalLine(instruction.to_string()))
     }
 
+    /// Compile Command
+    ///
     /// Tries to compile an instruction as a command. Returns:
     /// - [Ok(AnyCommand)] if instruction is a valid command with correct args
     /// - [None] else
     ///
     /// Expects instruction to be trimmed.
-    fn try_compile_command(&self, instruction: &str) -> Option<AnyCommand> {
+    fn compile_command(&self, instruction: &str) -> Option<AnyCommand> {
         // todo: JUMPa is accepted - assert whitespace between command & arg
         let regex = Regex::new(r"^([A-Z]+)\s*(.*)$").unwrap();
         if let Some(captures) = regex.captures(instruction) {
@@ -113,12 +118,14 @@ impl Compiler {
     }
 }
 
+/// Compile Comment
+///
 /// Tries to compile an instruction as a comment. Returns:
 /// - [Ok(u32)] if line starts with <code>COMMENT</code> and has an [u32] arg
 /// - [None] else
 ///
 /// Expects instruction to be trimmed.
-fn try_compile_comment(instruction: &str) -> Option<u32> {
+fn compile_comment(instruction: &str) -> Option<u32> {
     let regex = Regex::new(r"^COMMENT\s+(\d+)$").unwrap();
     if let Some(captures) = regex.captures(instruction) {
         let (_, [arg]) = captures.extract();
@@ -128,12 +135,14 @@ fn try_compile_comment(instruction: &str) -> Option<u32> {
     None
 }
 
+/// Compile Define
+///
 /// Tries to compile a define instruction. Returns:
 /// - [Ok(DefineLine)] if define contains the correct type & index
 /// - [None] else
 ///
 /// Expects instruction to be trimmed.
-fn try_compile_define(instruction: &str) -> Option<DefineInstruction> {
+fn compile_define(instruction: &str) -> Option<DefineInstruction> {
     let regex = Regex::new(r"^DEFINE\s+(COMMENT|LABEL)\s+(\d+)$").unwrap();
     if let Some(captures) = regex.captures(instruction) {
         let (_, [define_type, index]) = captures.extract();
@@ -148,12 +157,14 @@ fn try_compile_define(instruction: &str) -> Option<DefineInstruction> {
     None
 }
 
+/// Compile New Label
+///
 /// Tries to compile an instruction as a new label. Returns:
 /// - [Ok(String)] if instruction consists of lowercase a-z followed by a colon
 /// - [None] else
 ///
 /// Expects instruction to be trimmed.
-fn try_compile_new_label(instruction: &str) -> Option<String> {
+fn compile_new_label(instruction: &str) -> Option<String> {
     let regex = Regex::new(r"^([a-z]+):$").unwrap();
     if let Some(captures) = regex.captures(instruction) {
         let (_, [label]) = captures.extract();
@@ -163,12 +174,14 @@ fn try_compile_new_label(instruction: &str) -> Option<String> {
     None
 }
 
+/// Compile Command Value
+///
 /// Returns [Ok(Value)] if input matches one of:
 /// - <code>\d+</code>
 /// - <code>\[\d+\]</code>
 ///
 /// Returns [None] otherwise.
-pub fn try_compile_command_value(value: &str) -> Option<CommandValue> {
+pub fn compile_command_value(value: &str) -> Option<CommandValue> {
     let regex = Regex::new(r"^(\[\d+]|\d+)$").unwrap();
     if let Some(captures) = regex.captures(value) {
         let (_, [value]) = captures.extract();
@@ -184,8 +197,10 @@ pub fn try_compile_command_value(value: &str) -> Option<CommandValue> {
     None
 }
 
+/// Compile Label
+///
 /// Returns [Ok(String)] if input matches <code>\[a-z\]+</code>, else returns [None].
-pub fn try_compile_label(label: &str) -> Option<String> {
+pub fn compile_label(label: &str) -> Option<String> {
     let regex = Regex::new(r"^([a-z]+)$").unwrap();
     if let Some(captures) = regex.captures(label) {
         let (_, [label]) = captures.extract();
@@ -200,23 +215,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn try_compile_comment_succeeds() {
+    fn compile_comment_succeeds() {
         let line = "COMMENT 123";
-        let comment = try_compile_comment(line).unwrap();
+        let comment = compile_comment(line).unwrap();
         assert_eq!(123, comment);
     }
 
     #[test]
-    fn try_compile_comment_fails() {
+    fn compile_comment_fails() {
         for arg in vec!["", "1a", "b", "C", "aBc", "0 1"] {
             let line = format!("COMMENT {}", arg);
-            let comment = try_compile_comment(&line);
+            let comment = compile_comment(&line);
             assert!(comment.is_none());
         }
     }
 
     #[test]
-    fn try_compile_define_succeeds() {
+    fn compile_define_succeeds() {
         let index: u32 = 123;
         let define_pairs = [
             ("COMMENT", DefineInstruction::COMMENT(index)),
@@ -225,138 +240,138 @@ mod tests {
 
         for define_pair in define_pairs {
             let line = format!("DEFINE {} {}", define_pair.0, index);
-            let define_line = try_compile_define(&line).unwrap();
+            let define_line = compile_define(&line).unwrap();
             assert_eq!(define_pair.1, define_line);
         }
     }
 
     #[test]
-    fn try_compile_new_label_succeeds() {
+    fn compile_new_label_succeeds() {
         for line in ["a:", "abc:"] {
-            let label = try_compile_new_label(line).unwrap();
+            let label = compile_new_label(line).unwrap();
             assert_eq!(&line[..line.len() - 1], label);
         }
     }
 
     #[test]
-    fn try_compile_new_label_fails() {
+    fn compile_new_label_fails() {
         for line in ["INBOX", "A:", "aBc:", "a:b", "a: "] {
-            let label = try_compile_new_label(line);
+            let label = compile_new_label(line);
             assert!(label.is_none());
         }
     }
 
     #[test]
-    fn try_compile_command_no_arg_succeeds() {
+    fn compile_command_no_arg_succeeds() {
         let compiler = Compiler::default();
 
         for cmd in ["INBOX", "OUTBOX"] {
-            let command = compiler.try_compile_command(cmd).unwrap();
+            let command = compiler.compile_command(cmd).unwrap();
             assert_eq!(cmd, command.command());
         }
     }
 
     #[test]
-    fn try_compile_command_no_arg_fails() {
+    fn compile_command_no_arg_fails() {
         let compiler = Compiler::default();
 
         for cmd in ["INBOX", "OUTBOX"] {
             for arg in ["1", "a", "42b"] {
                 let line = format!("{} {}", cmd, arg);
-                let command = compiler.try_compile_command(&line);
+                let command = compiler.compile_command(&line);
                 assert!(command.is_none());
             }
         }
     }
 
     #[test]
-    fn try_compile_command_value_arg_succeeds() {
+    fn compile_command_value_arg_succeeds() {
         let value = 123;
         let index = 456;
         let compiler = Compiler::default();
 
         for cmd in ["COPYFROM", "COPYTO", "ADD", "SUB", "BUMPUP", "BUMPDN"] {
             let line = format!("{} {}", cmd, value);
-            let command = compiler.try_compile_command(&line).unwrap();
+            let command = compiler.compile_command(&line).unwrap();
             assert_eq!(cmd, command.command());
             assert_command_value(&command, CommandValue::Value(value));
 
             let line = format!("{} [{}]", cmd, index);
-            let command = compiler.try_compile_command(&line).unwrap();
+            let command = compiler.compile_command(&line).unwrap();
             assert_eq!(cmd, command.command());
             assert_command_value(&command, CommandValue::Index(index));
         }
     }
 
     #[test]
-    fn try_compile_command_value_arg_fails() {
+    fn compile_command_value_arg_fails() {
         let compiler = Compiler::default();
 
         for cmd in ["COPYFROM", "COPYTO", "ADD", "SUB", "BUMPUP", "BUMPDN"] {
             for arg in ["", "1a", "abc", "D", "[", "[]", "[1a]", "[A]"] {
                 let line = format!("{} {}", cmd, arg);
-                let command = compiler.try_compile_command(&line);
+                let command = compiler.compile_command(&line);
                 assert!(command.is_none());
             }
         }
     }
 
     #[test]
-    fn try_compile_command_label_arg_succeeds() {
+    fn compile_command_label_arg_succeeds() {
         let label = "abc";
         let compiler = Compiler::default();
 
         for cmd in ["JUMP", "JUMPZ", "JUMPN"] {
             let line = format!("{} {}", cmd, label);
-            let command = compiler.try_compile_command(&line).unwrap();
+            let command = compiler.compile_command(&line).unwrap();
             assert_eq!(cmd, command.command());
             assert_label(&command, label);
         }
     }
 
     #[test]
-    fn try_compile_command_label_arg_fails() {
+    fn compile_command_label_arg_fails() {
         let compiler = Compiler::default();
 
         for cmd in ["JUMP", "JUMPZ", "JUMPN"] {
             for arg in ["", "aBc", "A", "1"] {
                 let line = format!("{} {}", cmd, arg);
-                let command = compiler.try_compile_command(&line);
+                let command = compiler.compile_command(&line);
                 assert!(command.is_none());
             }
         }
     }
 
     #[test]
-    fn try_compile_value_empty() {
-        let value = try_compile_command_value("");
+    fn compile_value_empty() {
+        let value = compile_command_value("");
         assert!(value.is_none());
     }
 
     #[test]
-    fn try_compile_value_value() {
-        let value = try_compile_command_value("123").unwrap();
+    fn compile_value_value() {
+        let value = compile_command_value("123").unwrap();
         assert_eq!(CommandValue::Value(123), value);
     }
 
     #[test]
-    fn try_compile_value_index() {
-        let value = try_compile_command_value("[123]").unwrap();
+    fn compile_value_index() {
+        let value = compile_command_value("[123]").unwrap();
         assert_eq!(CommandValue::Index(123), value);
     }
 
     #[test]
-    fn try_compile_label_succeeds() {
+    fn compile_label_succeeds() {
         for label in vec!["a", "bc", "def"] {
-            let parsed_label = try_compile_label(label).unwrap();
+            let parsed_label = compile_label(label).unwrap();
             assert_eq!(label, parsed_label);
         }
     }
 
     #[test]
-    fn try_compile_label_fails() {
+    fn compile_label_fails() {
         for label in vec!["A", "aBc", "1", "a1", "ab:", ""] {
-            let label = try_compile_label(label);
+            let label = compile_label(label);
             assert!(label.is_none());
         }
     }

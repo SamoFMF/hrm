@@ -130,7 +130,7 @@ impl Program {
 
         let (mut speed_min, mut speed_max, mut speed_avg) = (u32::MAX, 0, 0);
         for problem_io in problem.get_ios() {
-            let speed = self.run_io_new(problem_io, problem.get_memory().clone())?;
+            let speed = self.run_io(problem_io, problem.get_memory().clone())?;
 
             if log_enabled!(Level::Debug) {
                 debug!("Program ended, speed = {speed}");
@@ -159,7 +159,7 @@ impl Program {
         })
     }
 
-    fn run_io_new(&self, problem_io: &ProblemIO, memory: Memory) -> Result<u32, RunError> {
+    fn run_io(&self, problem_io: &ProblemIO, memory: Memory) -> Result<u32, RunError> {
         if log_enabled!(Level::Debug) {
             debug!("Running program for new IO");
         }
@@ -193,25 +193,28 @@ impl Program {
     }
 }
 
-pub fn try_get_acc(acc: Option<Value>) -> Result<Value, RunError> {
+// todo: test
+pub fn get_acc(acc: Option<Value>) -> Result<Value, RunError> {
     match acc {
         Some(acc) => Ok(acc),
         None => Err(RunError::EmptyAccNew),
     }
 }
 
-pub fn try_get_from_memory(memory: Option<Value>) -> Result<Value, RunError> {
+// todo: test
+pub fn get_from_memory(memory: Option<Value>) -> Result<Value, RunError> {
     match memory {
         Some(value) => Ok(value),
         None => Err(RunError::EmptyMemoryNew),
     }
 }
 
-pub fn try_get_index(command_value: &CommandValue, memory: &Memory) -> Result<usize, RunError> {
+// todo: test
+pub fn get_index(command_value: &CommandValue, memory: &Memory) -> Result<usize, RunError> {
     match command_value {
         CommandValue::Value(value) => Ok(*value),
         CommandValue::Index(index) => {
-            let index_value = try_get_from_memory(memory[*index])?;
+            let index_value = get_from_memory(memory[*index])?;
             match index_value {
                 Value::Int(idx) => {
                     if idx < 0 || idx as usize >= memory.len() {

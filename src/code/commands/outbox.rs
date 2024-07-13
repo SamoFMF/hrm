@@ -4,7 +4,7 @@ use crate::code::{
     commands::Command,
     game_state::GameState,
     program::Program,
-    program::{try_get_acc, RunError},
+    program::{get_acc, RunError},
 };
 
 const COMMAND: &str = "OUTBOX";
@@ -36,7 +36,7 @@ impl Command for Outbox {
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
-        let value = try_get_acc(game_state.acc)?;
+        let value = get_acc(game_state.acc)?;
 
         if log_enabled!(Level::Debug) {
             debug!("Produced value to outbox: {:?}", value);

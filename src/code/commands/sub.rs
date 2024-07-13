@@ -2,9 +2,9 @@ use crate::{
     code::{
         commands::{Command, CommandValue},
         game_state::GameState,
-        program::{try_get_acc, try_get_from_memory, try_get_index, Program, RunError},
+        program::{get_acc, get_from_memory, get_index, Program, RunError},
     },
-    compiler::compile::try_compile_command_value,
+    compiler::compile::compile_command_value,
 };
 
 const COMMAND: &str = "SUB";
@@ -32,13 +32,13 @@ impl Command for Sub {
             return None;
         }
 
-        try_compile_command_value(args).map(|command_value| Sub(command_value))
+        compile_command_value(args).map(|command_value| Sub(command_value))
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
-        let value = try_get_acc(game_state.acc)?;
-        let index = try_get_index(&self.0, &game_state.memory)?;
-        let to_sub = try_get_from_memory(game_state.memory[index])?;
+        let value = get_acc(game_state.acc)?;
+        let index = get_index(&self.0, &game_state.memory)?;
+        let to_sub = get_from_memory(game_state.memory[index])?;
         let diff = value.sub(to_sub).ok_or(RunError::SubNew)?;
         game_state.acc = Some(diff);
         Ok(())
