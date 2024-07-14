@@ -32,14 +32,14 @@ impl Command for Sub {
             return None;
         }
 
-        compile_command_value(args).map(|command_value| Sub(command_value))
+        compile_command_value(args).map(Sub)
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let value = get_acc(game_state.acc)?;
         let index = get_index(&self.0, &game_state.memory)?;
         let to_sub = get_from_memory(game_state.memory[index])?;
-        let diff = value.sub(to_sub).ok_or(RunError::Sub)?;
+        let diff = value.hrm_sub(to_sub).ok_or(RunError::Sub)?;
         game_state.acc = Some(diff);
         Ok(())
     }

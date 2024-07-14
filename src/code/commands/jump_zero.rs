@@ -32,7 +32,7 @@ impl Command for JumpZero {
             return None;
         }
 
-        compile_label(args).map(|label| JumpZero(label))
+        compile_label(args).map(JumpZero)
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {

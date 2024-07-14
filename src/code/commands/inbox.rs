@@ -20,6 +20,12 @@ impl Debug for Inbox {
     }
 }
 
+impl Default for Inbox {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Inbox {
     pub fn new() -> Self {
         Self {

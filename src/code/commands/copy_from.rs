@@ -32,7 +32,7 @@ impl Command for CopyFrom {
             return None;
         }
 
-        compile_command_value(args).map(|command_value| CopyFrom(command_value))
+        compile_command_value(args).map(CopyFrom)
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {

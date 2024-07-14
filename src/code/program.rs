@@ -170,8 +170,8 @@ impl Program {
             let command = &self.commands[game_state.i_command];
             trace!("Running command {}: {:?}", game_state.i_command, command);
 
-            command.execute(&self, &mut game_state)?;
-            game_state.i_command = command.next(&self, &game_state);
+            command.execute(self, &mut game_state)?;
+            game_state.i_command = command.next(self, &game_state);
         }
 
         if game_state.i_output == game_state.output.len() {
@@ -232,6 +232,12 @@ pub fn get_index(command_value: &CommandValue, memory: &Memory) -> Result<usize,
 pub struct ProgramBuilder {
     commands: Vec<AnyCommand>,
     labels: HashMap<String, usize>,
+}
+
+impl Default for ProgramBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ProgramBuilder {

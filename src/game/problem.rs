@@ -13,7 +13,13 @@ pub struct Problem {
 }
 
 impl Problem {
-    pub fn new(title: String, description: String, ios: Vec<ProblemIO>, memory: Vec<Option<Value>>, available_commands: HashSet<String>) -> Self {
+    pub fn new(
+        title: String,
+        description: String,
+        ios: Vec<ProblemIO>,
+        memory: Vec<Option<Value>>,
+        available_commands: HashSet<String>,
+    ) -> Self {
         Self {
             title,
             description,
@@ -43,6 +49,12 @@ pub struct ProblemBuilder {
     memory: HashMap<usize, Value>,
     memory_dim: Option<usize>,
     available_commands: HashSet<String>,
+}
+
+impl Default for ProblemBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ProblemBuilder {
@@ -83,9 +95,8 @@ impl ProblemBuilder {
     }
 
     pub fn enable_all_commands(mut self) -> Self {
-        self.available_commands = HashSet::from_iter(
-            ALL_COMMANDS.iter().map(|command| command.to_string())
-        );
+        self.available_commands =
+            HashSet::from_iter(ALL_COMMANDS.iter().map(|command| command.to_string()));
         self
     }
 
@@ -113,7 +124,13 @@ impl ProblemBuilder {
             }
         }
 
-        Problem::new(self.title, self.description, self.ios, memory, self.available_commands)
+        Problem::new(
+            self.title,
+            self.description,
+            self.ios,
+            memory,
+            self.available_commands,
+        )
     }
 }
 
@@ -131,7 +148,10 @@ mod tests {
     #[test]
     fn enable_all_commands_test() {
         let problem = ProblemBuilder::new()
-            .add_io(ProblemIO { input: vec![], output: vec![] })
+            .add_io(ProblemIO {
+                input: vec![],
+                output: vec![],
+            })
             .memory_dim(0)
             .enable_all_commands()
             .build();
@@ -146,14 +166,18 @@ mod tests {
     fn enable_command_test() {
         let available_command = String::from("SUB");
         let problem = ProblemBuilder::new()
-            .add_io(ProblemIO { input: vec![], output: vec![] })
+            .add_io(ProblemIO {
+                input: vec![],
+                output: vec![],
+            })
             .memory_dim(0)
             .enable_command(available_command.clone())
             .build();
 
         assert!(problem.is_command_available(&available_command));
 
-        ALL_COMMANDS.iter()
+        ALL_COMMANDS
+            .iter()
             .filter(|command| **command != available_command)
             .for_each(|command| assert!(!problem.is_command_available(*command)));
     }
@@ -162,7 +186,10 @@ mod tests {
     fn disable_command_test() {
         let unavailable_command = "SUB";
         let problem = ProblemBuilder::new()
-            .add_io(ProblemIO { input: vec![], output: vec![] })
+            .add_io(ProblemIO {
+                input: vec![],
+                output: vec![],
+            })
             .memory_dim(0)
             .enable_all_commands()
             .disable_command(unavailable_command)
@@ -170,7 +197,8 @@ mod tests {
 
         assert!(!problem.is_command_available(unavailable_command));
 
-        ALL_COMMANDS.iter()
+        ALL_COMMANDS
+            .iter()
             .filter(|command| **command != unavailable_command)
             .for_each(|command| assert!(problem.is_command_available(*command)));
     }

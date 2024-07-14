@@ -32,7 +32,7 @@ impl Command for CopyTo {
             return None;
         }
 
-        compile_command_value(args).map(|command_value| CopyTo(command_value))
+        compile_command_value(args).map(CopyTo)
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {

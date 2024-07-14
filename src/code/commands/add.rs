@@ -32,14 +32,14 @@ impl Command for Add {
             return None;
         }
 
-        compile_command_value(args).map(|command_value| Add(command_value))
+        compile_command_value(args).map(Add)
     }
 
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let value = get_acc(game_state.acc)?;
         let index = get_index(&self.0, &game_state.memory)?;
         let to_add = get_from_memory(game_state.memory[index])?;
-        let sum = value.add(to_add).ok_or(RunError::Add)?;
+        let sum = value.hrm_add(to_add).ok_or(RunError::Add)?;
         game_state.acc = Some(sum);
         Ok(())
     }

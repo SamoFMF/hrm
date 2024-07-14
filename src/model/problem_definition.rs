@@ -15,19 +15,22 @@ pub struct ProblemDefinition {
     pub commands: Vec<String>,
 }
 
-impl Into<Problem> for ProblemDefinition {
-    fn into(self) -> Problem {
+impl From<ProblemDefinition> for Problem {
+    fn from(value: ProblemDefinition) -> Self {
         let mut builder = ProblemBuilder::new()
-            .title(self.title)
-            .description(self.description);
+            .title(value.title)
+            .description(value.description);
 
-        for problem_io in self.ios {
+        for problem_io in value.ios {
             builder = builder.add_io(problem_io.into());
         }
 
-        if let Some(memory) = self.memory {
+        if let Some(memory) = value.memory {
             match memory {
-                ProblemDefinitionMemory { full: Some(full), partial: _ } => {
+                ProblemDefinitionMemory {
+                    full: Some(full),
+                    partial: _,
+                } => {
                     builder = builder.memory_dim(full.len());
                     for (i, value) in full.iter().enumerate() {
                         if let Some(value) = *value {
@@ -35,7 +38,10 @@ impl Into<Problem> for ProblemDefinition {
                         }
                     }
                 }
-                ProblemDefinitionMemory { full: None, partial: Some(partial) } => {
+                ProblemDefinitionMemory {
+                    full: None,
+                    partial: Some(partial),
+                } => {
                     builder = builder.memory_dim(partial.dim);
                     for (i, value) in partial.values {
                         builder = builder.add_memory_slot(i, value);
@@ -45,7 +51,7 @@ impl Into<Problem> for ProblemDefinition {
             }
         }
 
-        for command in self.commands {
+        for command in value.commands {
             builder = builder.enable_command(command);
         }
 
@@ -59,11 +65,11 @@ pub struct ProblemDefinitionIO {
     pub output: Vec<Value>,
 }
 
-impl Into<ProblemIO> for ProblemDefinitionIO {
-    fn into(self) -> ProblemIO {
+impl From<ProblemDefinitionIO> for ProblemIO {
+    fn from(value: ProblemDefinitionIO) -> Self {
         ProblemIO {
-            input: self.input,
-            output: self.output,
+            input: value.input,
+            output: value.output,
         }
     }
 }

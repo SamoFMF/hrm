@@ -32,7 +32,7 @@ impl Command for Jump {
             return None;
         }
 
-        compile_label(args).map(|label| Jump(label))
+        compile_label(args).map(Jump)
     }
 
     fn execute(&self, _program: &Program, _game_state: &mut GameState) -> Result<(), RunError> {

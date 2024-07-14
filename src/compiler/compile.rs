@@ -66,7 +66,7 @@ impl Compiler {
     fn compile_instruction(&self, instruction: &str) -> Result<ParsedLine, ParseError> {
         let instruction = instruction.trim();
 
-        if instruction == "" {
+        if instruction.is_empty() {
             return Ok(ParsedLine::Empty);
         }
 
@@ -108,9 +108,7 @@ impl Compiler {
             return self
                 .commands
                 .iter()
-                .map(|cmd_create| cmd_create(command, args))
-                .filter(|cmd_opt| cmd_opt.is_some())
-                .map(|cmd_opt| cmd_opt.unwrap())
+                .filter_map(|cmd_create| cmd_create(command, args))
                 .next();
         }
 
@@ -185,8 +183,8 @@ pub fn compile_command_value(value: &str) -> Option<CommandValue> {
     let regex = Regex::new(r"^(\[\d+]|\d+)$").unwrap();
     if let Some(captures) = regex.captures(value) {
         let (_, [value]) = captures.extract();
-        return if value.starts_with("[") {
-            let value = (&value[1..(value.len() - 1)]).parse().unwrap();
+        return if value.starts_with('[') {
+            let value = value[1..(value.len() - 1)].parse().unwrap();
             Some(CommandValue::Index(value))
         } else {
             let value = value.parse().unwrap();
