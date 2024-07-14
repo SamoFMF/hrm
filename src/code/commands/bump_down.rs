@@ -41,7 +41,7 @@ impl Command for BumpDown {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let index = get_index(&self.0, &game_state.memory)?;
         let to_bump = get_from_memory(game_state.memory[index])?;
-        let bumped = to_bump.sub(Value::Int(1)).ok_or(RunError::SubNew)?;
+        let bumped = to_bump.sub(Value::Int(1)).ok_or(RunError::Sub)?;
         game_state.memory[index] = Some(bumped);
         game_state.acc = Some(bumped);
         Ok(())
@@ -148,7 +148,7 @@ mod tests {
         let result = BumpDown(CommandValue::Value(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
-        assert_eq!(RunError::SubNew, result);
+        assert_eq!(RunError::Sub, result);
     }
 
     #[test]
@@ -177,7 +177,7 @@ mod tests {
         let result = BumpDown(CommandValue::Index(2))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
-        assert_eq!(RunError::EmptyMemoryNew, result);
+        assert_eq!(RunError::EmptyMemory, result);
     }
 
     #[test]

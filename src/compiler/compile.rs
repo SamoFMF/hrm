@@ -17,7 +17,7 @@ pub enum ParseError {
 pub enum ParsedLine {
     Comment(u32),
     Label(String),
-    CommandNew(AnyCommand),
+    Command(AnyCommand),
     Empty,
     CommentedCode,
     Define(DefineInstruction),
@@ -52,9 +52,9 @@ impl Compiler {
         let mut builder = ProgramBuilder::new();
 
         for line in code.lines() {
-            match self.compile_instruction_new(line)? {
+            match self.compile_instruction(line)? {
                 ParsedLine::Label(label) => builder.add_label_ref(label),
-                ParsedLine::CommandNew(command) => builder.add_command_ref_new(command),
+                ParsedLine::Command(command) => builder.add_command_ref(command),
                 _ => {}
             }
         }
@@ -63,7 +63,7 @@ impl Compiler {
     }
 
     // todo: see todo file
-    fn compile_instruction_new(&self, instruction: &str) -> Result<ParsedLine, ParseError> {
+    fn compile_instruction(&self, instruction: &str) -> Result<ParsedLine, ParseError> {
         let instruction = instruction.trim();
 
         if instruction == "" {
@@ -87,7 +87,7 @@ impl Compiler {
         }
 
         if let Some(command) = self.compile_command(instruction) {
-            return Ok(ParsedLine::CommandNew(command));
+            return Ok(ParsedLine::Command(command));
         }
 
         Err(ParseError::IllegalLine(instruction.to_string()))

@@ -142,7 +142,7 @@ mod tests {
         let result = CopyTo(CommandValue::Value(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
-        assert_eq!(RunError::EmptyAccNew, result);
+        assert_eq!(RunError::EmptyAcc, result);
     }
 
     #[test]
@@ -171,7 +171,7 @@ mod tests {
         let result = CopyTo(CommandValue::Index(2))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
-        assert_eq!(RunError::EmptyMemoryNew, result);
+        assert_eq!(RunError::EmptyMemory, result);
     }
 
     #[test]

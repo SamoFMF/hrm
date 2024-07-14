@@ -39,7 +39,7 @@ impl Command for Add {
         let value = get_acc(game_state.acc)?;
         let index = get_index(&self.0, &game_state.memory)?;
         let to_add = get_from_memory(game_state.memory[index])?;
-        let sum = value.add(to_add).ok_or(RunError::AddNew)?;
+        let sum = value.add(to_add).ok_or(RunError::Add)?;
         game_state.acc = Some(sum);
         Ok(())
     }
@@ -141,7 +141,7 @@ mod tests {
         let result = Add(CommandValue::Value(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
-        assert_eq!(RunError::EmptyAccNew, result);
+        assert_eq!(RunError::EmptyAcc, result);
     }
 
     #[test]
@@ -170,7 +170,7 @@ mod tests {
         let result = Add(CommandValue::Index(2))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
-        assert_eq!(RunError::EmptyMemoryNew, result);
+        assert_eq!(RunError::EmptyMemory, result);
     }
 
     #[test]

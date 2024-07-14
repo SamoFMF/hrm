@@ -31,16 +31,16 @@ pub enum ValidationError {
 
 #[derive(Debug, PartialEq)]
 pub enum RunError {
-    EmptyAccNew,
-    EmptyMemoryNew,
+    EmptyAcc,
+    EmptyMemory,
     IncorrectOutput {
         expected: Option<Value>,
         value: Option<Value>,
     },
     CharIndex(Value),
     IndexOutOfRange(Value),
-    AddNew,
-    SubNew,
+    Add,
+    Sub,
 }
 
 #[derive(Debug, PartialEq)]
@@ -197,7 +197,7 @@ impl Program {
 pub fn get_acc(acc: Option<Value>) -> Result<Value, RunError> {
     match acc {
         Some(acc) => Ok(acc),
-        None => Err(RunError::EmptyAccNew),
+        None => Err(RunError::EmptyAcc),
     }
 }
 
@@ -205,7 +205,7 @@ pub fn get_acc(acc: Option<Value>) -> Result<Value, RunError> {
 pub fn get_from_memory(memory: Option<Value>) -> Result<Value, RunError> {
     match memory {
         Some(value) => Ok(value),
-        None => Err(RunError::EmptyMemoryNew),
+        None => Err(RunError::EmptyMemory),
     }
 }
 
@@ -230,29 +230,29 @@ pub fn get_index(command_value: &CommandValue, memory: &Memory) -> Result<usize,
 }
 
 pub struct ProgramBuilder {
-    commands_new: Vec<AnyCommand>,
+    commands: Vec<AnyCommand>,
     labels: HashMap<String, usize>,
 }
 
 impl ProgramBuilder {
     pub fn new() -> Self {
         Self {
-            commands_new: vec![],
+            commands: vec![],
             labels: HashMap::new(),
         }
     }
 
-    pub fn add_command_ref_new(&mut self, command: AnyCommand) {
-        self.commands_new.push(command);
+    pub fn add_command_ref(&mut self, command: AnyCommand) {
+        self.commands.push(command);
     }
 
-    pub fn add_command_new(mut self, command: AnyCommand) -> Self {
-        self.add_command_ref_new(command);
+    pub fn add_command(mut self, command: AnyCommand) -> Self {
+        self.add_command_ref(command);
         self
     }
 
     pub fn add_label_ref(&mut self, label: String) {
-        self.labels.insert(label, self.commands_new.len());
+        self.labels.insert(label, self.commands.len());
     }
 
     pub fn add_label(mut self, label: String) -> Self {
@@ -262,7 +262,7 @@ impl ProgramBuilder {
 
     pub fn build(self) -> Program {
         Program {
-            commands: self.commands_new,
+            commands: self.commands,
             labels: self.labels,
         }
     }
@@ -292,11 +292,11 @@ mod tests {
 
         let program = ProgramBuilder::new()
             .add_label(String::from("a"))
-            .add_command_new(Box::new(CopyFrom(CommandValue::Value(0))))
+            .add_command(Box::new(CopyFrom(CommandValue::Value(0))))
             .add_label(String::from("b"))
-            .add_command_new(Box::new(CopyTo(CommandValue::Index(4))))
+            .add_command(Box::new(CopyTo(CommandValue::Index(4))))
             .add_label(String::from("c"))
-            .add_command_new(Box::new(Jump(String::from("a"))))
+            .add_command(Box::new(Jump(String::from("a"))))
             .build();
 
         program.validate(&problem).unwrap();

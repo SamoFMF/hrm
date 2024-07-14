@@ -151,7 +151,7 @@ mod tests {
         let result = JumpZero(String::from("a"))
             .execute(&program, &mut game_state)
             .unwrap_err();
-        assert_eq!(RunError::EmptyAccNew, result);
+        assert_eq!(RunError::EmptyAcc, result);
     }
 
     #[test]

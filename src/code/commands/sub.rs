@@ -39,7 +39,7 @@ impl Command for Sub {
         let value = get_acc(game_state.acc)?;
         let index = get_index(&self.0, &game_state.memory)?;
         let to_sub = get_from_memory(game_state.memory[index])?;
-        let diff = value.sub(to_sub).ok_or(RunError::SubNew)?;
+        let diff = value.sub(to_sub).ok_or(RunError::Sub)?;
         game_state.acc = Some(diff);
         Ok(())
     }
@@ -141,7 +141,7 @@ mod tests {
         let result = Sub(CommandValue::Value(0))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
-        assert_eq!(RunError::EmptyAccNew, result);
+        assert_eq!(RunError::EmptyAcc, result);
     }
 
     #[test]
@@ -170,7 +170,7 @@ mod tests {
         let result = Sub(CommandValue::Index(2))
             .execute(&Default::default(), &mut game_state)
             .unwrap_err();
-        assert_eq!(RunError::EmptyMemoryNew, result);
+        assert_eq!(RunError::EmptyMemory, result);
     }
 
     #[test]
