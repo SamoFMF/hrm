@@ -31,12 +31,14 @@ impl Command for JumpNegative {
     /// Can be caused by:
     /// - if [GameState]`.acc` is [None] - this is prevented by calling [JumpNegative::execute] first
     /// - see [Program::get_label].
-    fn next(&self, program: &Program, game_state: &GameState) -> usize {
-        if get_acc(game_state.acc).unwrap() < 0 {
+    fn next(&self, program: &Program, game_state: &GameState) -> Option<usize> {
+        let next_idx = if get_acc(game_state.acc).unwrap() < 0 {
             program.get_label(&self.0)
         } else {
             game_state.i_command + 1
-        }
+        };
+
+        Some(next_idx)
     }
 
     fn requires_label(&self) -> Option<&str> {
@@ -192,19 +194,27 @@ mod tests {
 
         let program = ProgramBuilder::new().add_label(String::from("a")).build();
 
-        let i_next = JumpNegative(String::from("a")).next(&program, &game_state);
+        let i_next = JumpNegative(String::from("a"))
+            .next(&program, &game_state)
+            .unwrap();
         assert_eq!(0, i_next);
 
         game_state.acc = Some(Value::Int(0));
-        let i_next = JumpNegative(String::from("a")).next(&program, &game_state);
+        let i_next = JumpNegative(String::from("a"))
+            .next(&program, &game_state)
+            .unwrap();
         assert_eq!(6, i_next);
 
         game_state.acc = Some(Value::Int(1));
-        let i_next = JumpNegative(String::from("a")).next(&program, &game_state);
+        let i_next = JumpNegative(String::from("a"))
+            .next(&program, &game_state)
+            .unwrap();
         assert_eq!(6, i_next);
 
         game_state.acc = Some(Value::Char('A'));
-        let i_next = JumpNegative(String::from("a")).next(&program, &game_state);
+        let i_next = JumpNegative(String::from("a"))
+            .next(&program, &game_state)
+            .unwrap();
         assert_eq!(6, i_next);
     }
 

@@ -172,7 +172,9 @@ impl Program {
             trace!("Running command {}: {:?}", game_state.i_command, command);
 
             command.execute(self, &mut game_state)?;
-            game_state.i_command = command.next(self, &game_state);
+            game_state.i_command = command
+                .next(self, &game_state)
+                .unwrap_or_else(|| usize::MAX);
         }
 
         if game_state.i_output == game_state.output.len() {

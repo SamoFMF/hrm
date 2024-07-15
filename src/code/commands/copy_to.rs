@@ -215,7 +215,9 @@ mod tests {
 
         assert_eq!(
             1,
-            CopyTo(CommandValue::Value(1)).next(&Default::default(), &game_state)
+            CopyTo(CommandValue::Value(1))
+                .next(&Default::default(), &game_state)
+                .unwrap()
         );
     }
 

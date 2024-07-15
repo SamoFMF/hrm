@@ -221,7 +221,9 @@ mod tests {
 
         assert_eq!(
             1,
-            BumpDown(CommandValue::Value(1)).next(&Default::default(), &game_state)
+            BumpDown(CommandValue::Value(1))
+                .next(&Default::default(), &game_state)
+                .unwrap()
         );
     }
 

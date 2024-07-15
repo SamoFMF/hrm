@@ -27,8 +27,8 @@ impl Command for Jump {
     /// # Panics
     ///
     /// See [Program::get_label].
-    fn next(&self, program: &Program, _game_state: &GameState) -> usize {
-        program.get_label(&self.0)
+    fn next(&self, program: &Program, _game_state: &GameState) -> Option<usize> {
+        Some(program.get_label(&self.0))
     }
 
     fn requires_label(&self) -> Option<&str> {
@@ -132,7 +132,7 @@ mod tests {
 
         let program = ProgramBuilder::new().add_label(String::from("a")).build();
 
-        let i_next = Jump(String::from("a")).next(&program, &game_state);
+        let i_next = Jump(String::from("a")).next(&program, &game_state).unwrap();
         assert_eq!(0, i_next);
     }
 

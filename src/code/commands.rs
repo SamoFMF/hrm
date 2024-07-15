@@ -38,9 +38,9 @@ pub trait Command: Debug {
 
     /// Next
     ///
-    /// Get next command index
-    fn next(&self, _program: &Program, game_state: &GameState) -> usize {
-        game_state.i_command + 1
+    /// Get next command index if it exists, else [None].
+    fn next(&self, _program: &Program, game_state: &GameState) -> Option<usize> {
+        Some(game_state.i_command + 1)
     }
 
     /// Requires Index

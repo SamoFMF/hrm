@@ -55,11 +55,11 @@ impl Command for Inbox {
         Ok(())
     }
 
-    fn next(&self, _program: &Program, game_state: &GameState) -> usize {
+    fn next(&self, _program: &Program, game_state: &GameState) -> Option<usize> {
         if *self.is_over.borrow() {
-            usize::MAX
+            None
         } else {
-            game_state.i_command + 1
+            Some(game_state.i_command + 1)
         }
     }
 
@@ -183,7 +183,10 @@ mod tests {
             speed: 0,
         };
 
-        assert_eq!(1, Inbox::new().next(&Default::default(), &game_state));
+        assert_eq!(
+            1,
+            Inbox::new().next(&Default::default(), &game_state).unwrap()
+        );
     }
 
     #[test]
@@ -199,13 +202,11 @@ mod tests {
             speed: 0,
         };
 
-        assert_eq!(
-            usize::MAX,
-            Inbox {
-                is_over: RefCell::new(true)
-            }
-            .next(&Default::default(), &game_state)
-        );
+        assert!(Inbox {
+            is_over: RefCell::new(true)
+        }
+        .next(&Default::default(), &game_state)
+        .is_none());
     }
 
     #[test]

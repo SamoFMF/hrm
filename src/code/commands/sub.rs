@@ -208,7 +208,9 @@ mod tests {
 
         assert_eq!(
             1,
-            Sub(CommandValue::Value(1)).next(&Default::default(), &game_state)
+            Sub(CommandValue::Value(1))
+                .next(&Default::default(), &game_state)
+                .unwrap()
         );
     }
 

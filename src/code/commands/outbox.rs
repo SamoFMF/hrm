@@ -196,7 +196,7 @@ mod tests {
             speed: 0,
         };
 
-        assert_eq!(1, Outbox.next(&Default::default(), &game_state));
+        assert_eq!(1, Outbox.next(&Default::default(), &game_state).unwrap());
     }
 
     #[test]
