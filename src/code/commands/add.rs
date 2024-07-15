@@ -1,40 +1,23 @@
 use crate::{
     code::{
-        commands::{Command, CommandValue},
+        commands::{AnyCommand, Command, CommandFactory, CommandValue},
         game_state::GameState,
         program::{get_acc, get_from_memory, get_index, Program, RunError},
     },
     compiler::compile::compile_command_value,
+    create_with_args,
 };
-
-const COMMAND: &str = "ADD";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Add(pub CommandValue);
 
-impl Command for Add {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        Add::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command != COMMAND {
-            return None;
-        }
-
+impl Add {
+    fn create(args: &str) -> Option<Self> {
         compile_command_value(args).map(Add)
     }
+}
 
+impl Command for Add {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let value = get_acc(game_state.acc)?;
         let index = get_index(&self.0, &game_state.memory)?;
@@ -50,6 +33,23 @@ impl Command for Add {
             CommandValue::Index(idx) => Some(idx),
         }
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(AddFactory)
+    }
+}
+
+pub struct AddFactory;
+
+impl CommandFactory for AddFactory {
+    fn command(&self) -> &'static str {
+        "ADD"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        // Add::create(args).map(|add| Box::new(add) as AnyCommand)
+        create_with_args!(Add, args)
+    }
 }
 
 #[cfg(test)]
@@ -58,49 +58,76 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, Add::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, Add(CommandValue::Value(5)).command());
-    }
-
+    // region:add
     #[test]
     fn create_succeeds() {
-        let command = Add::create("ADD", "42").unwrap();
+        let command = Add::create("42").unwrap();
         assert_eq!(Add(CommandValue::Value(42)), command);
 
-        let command = Add::create("ADD", "[42]").unwrap();
+        let command = Add::create("[42]").unwrap();
         assert_eq!(Add(CommandValue::Index(42)), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = Add::create("INBOX", "");
-        assert_eq!(None, command);
+        let command = Add::create("");
+        assert!(command.is_none());
 
-        let command = Add::create("SUB", "42");
-        assert_eq!(None, command);
+        let command = Add::create("");
+        assert!(command.is_none());
 
-        let command = Add::create("ADD", "");
-        assert_eq!(None, command);
+        let command = Add::create("a");
+        assert!(command.is_none());
 
-        let command = Add::create("ADD", "a");
-        assert_eq!(None, command);
+        let command = Add::create("a1");
+        assert!(command.is_none());
 
-        let command = Add::create("ADD", "a1");
-        assert_eq!(None, command);
+        let command = Add::create(" ");
+        assert!(command.is_none());
 
-        let command = Add::create("ADD", " ");
-        assert_eq!(None, command);
-
-        let command = Add::create("ADD", " 1 ");
-        assert_eq!(None, command);
+        let command = Add::create(" 1 ");
+        assert!(command.is_none());
+    }
+    // endregion
+    #[test]
+    fn command_test() {
+        assert_eq!("ADD", AddFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = AddFactory.create("42");
+        assert!(command.is_some());
+
+        let command = AddFactory.create("[42]");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = AddFactory.create("");
+        assert!(command.is_none());
+
+        let command = AddFactory.create("");
+        assert!(command.is_none());
+
+        let command = AddFactory.create("a");
+        assert!(command.is_none());
+
+        let command = AddFactory.create("a1");
+        assert!(command.is_none());
+
+        let command = AddFactory.create(" ");
+        assert!(command.is_none());
+
+        let command = AddFactory.create(" 1 ");
+        assert!(command.is_none());
+    }
+    // region:factory
+
+    // endregion
+
+    // region:command
     #[test]
     fn execute_succeeds() {
         let mut game_state = GameState {
@@ -206,4 +233,11 @@ mod tests {
         assert!(Add(CommandValue::Value(42)).requires_label().is_none());
         assert!(Add(CommandValue::Index(42)).requires_label().is_none());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!("ADD", Add(CommandValue::Value(42)).factory().command());
+        assert_eq!("ADD", Add(CommandValue::Index(42)).factory().command());
+    }
+    // endregion
 }

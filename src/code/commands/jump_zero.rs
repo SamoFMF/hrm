@@ -1,40 +1,23 @@
 use crate::{
     code::{
-        commands::Command,
+        commands::{AnyCommand, Command, CommandFactory},
         game_state::GameState,
         program::{get_acc, Program, RunError},
     },
     compiler::compile::compile_label,
+    create_with_args,
 };
-
-const COMMAND: &str = "JUMPZ";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct JumpZero(pub String);
 
-impl Command for JumpZero {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        JumpZero::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command != COMMAND {
-            return None;
-        }
-
+impl JumpZero {
+    fn create(args: &str) -> Option<Self> {
         compile_label(args).map(JumpZero)
     }
+}
 
+impl Command for JumpZero {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         get_acc(game_state.acc).map(|_| ())
     }
@@ -59,6 +42,22 @@ impl Command for JumpZero {
     fn requires_label(&self) -> Option<&str> {
         Some(&self.0)
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(JumpZeroFactory)
+    }
+}
+
+pub struct JumpZeroFactory;
+
+impl CommandFactory for JumpZeroFactory {
+    fn command(&self) -> &'static str {
+        "JUMPZ"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        create_with_args!(JumpZero, args)
+    }
 }
 
 #[cfg(test)]
@@ -68,46 +67,70 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, JumpZero::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, JumpZero(String::from("a")).command());
-    }
-
+    // region:jumpzero
     #[test]
     fn create_succeeds() {
-        let command = JumpZero::create("JUMPZ", "a").unwrap();
+        let command = JumpZero::create("a").unwrap();
         assert_eq!(JumpZero(String::from("a")), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = JumpZero::create("INBOX", "");
-        assert_eq!(None, command);
+        let command = JumpZero::create("");
+        assert!(command.is_none());
 
-        let command = JumpZero::create("JUMP", "a");
-        assert_eq!(None, command);
+        let command = JumpZero::create("");
+        assert!(command.is_none());
 
-        let command = JumpZero::create("JUMPZ", "");
-        assert_eq!(None, command);
+        let command = JumpZero::create("1");
+        assert!(command.is_none());
 
-        let command = JumpZero::create("JUMPZ", "1");
-        assert_eq!(None, command);
+        let command = JumpZero::create("a1");
+        assert!(command.is_none());
 
-        let command = JumpZero::create("JUMPZ", "a1");
-        assert_eq!(None, command);
+        let command = JumpZero::create(" ");
+        assert!(command.is_none());
 
-        let command = JumpZero::create("JUMPZ", " ");
-        assert_eq!(None, command);
+        let command = JumpZero::create(" a ");
+        assert!(command.is_none());
+    }
+    // endregion
 
-        let command = JumpZero::create("JUMPZ", " a ");
-        assert_eq!(None, command);
+    // region:factory
+    #[test]
+    fn command_test() {
+        assert_eq!("JUMPZ", JumpZeroFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = JumpZeroFactory.create("a");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = JumpZeroFactory.create("");
+        assert!(command.is_none());
+
+        let command = JumpZeroFactory.create("");
+        assert!(command.is_none());
+
+        let command = JumpZeroFactory.create("1");
+        assert!(command.is_none());
+
+        let command = JumpZeroFactory.create("a1");
+        assert!(command.is_none());
+
+        let command = JumpZeroFactory.create(" ");
+        assert!(command.is_none());
+
+        let command = JumpZeroFactory.create(" a ");
+        assert!(command.is_none());
+    }
+    // endregion
+
+    // region:command
     #[test]
     fn execute_succeeds() {
         let mut game_state = GameState {
@@ -195,4 +218,10 @@ mod tests {
         let command = JumpZero(String::from("a"));
         assert_eq!("a", command.requires_label().unwrap());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!("JUMPZ", JumpZero(String::from("a")).factory().command());
+    }
+    // endregion
 }

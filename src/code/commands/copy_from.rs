@@ -1,40 +1,23 @@
 use crate::{
     code::{
-        commands::{Command, CommandValue},
+        commands::{AnyCommand, Command, CommandFactory, CommandValue},
         game_state::GameState,
         program::{get_from_memory, get_index, Program, RunError},
     },
     compiler::compile::compile_command_value,
+    create_with_args,
 };
-
-const COMMAND: &str = "COPYFROM";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CopyFrom(pub CommandValue);
 
-impl Command for CopyFrom {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        CopyFrom::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command != COMMAND {
-            return None;
-        }
-
+impl CopyFrom {
+    fn create(args: &str) -> Option<Self> {
         compile_command_value(args).map(CopyFrom)
     }
+}
 
+impl Command for CopyFrom {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let index = get_index(&self.0, &game_state.memory)?;
         game_state.acc = Some(get_from_memory(game_state.memory[index])?);
@@ -48,6 +31,22 @@ impl Command for CopyFrom {
             CommandValue::Index(idx) => Some(idx),
         }
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(CopyFromFactory)
+    }
+}
+
+pub struct CopyFromFactory;
+
+impl CommandFactory for CopyFromFactory {
+    fn command(&self) -> &'static str {
+        "COPYFROM"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        create_with_args!(CopyFrom, args)
+    }
 }
 
 #[cfg(test)]
@@ -56,49 +55,76 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, CopyFrom::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, CopyFrom(CommandValue::Value(5)).command());
-    }
-
+    // region:copyfrom
     #[test]
     fn create_succeeds() {
-        let command = CopyFrom::create("COPYFROM", "42").unwrap();
+        let command = CopyFrom::create("42").unwrap();
         assert_eq!(CopyFrom(CommandValue::Value(42)), command);
 
-        let command = CopyFrom::create("COPYFROM", "[42]").unwrap();
+        let command = CopyFrom::create("[42]").unwrap();
         assert_eq!(CopyFrom(CommandValue::Index(42)), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = CopyFrom::create("INBOX", "");
-        assert_eq!(None, command);
+        let command = CopyFrom::create("");
+        assert!(command.is_none());
 
-        let command = CopyFrom::create("COPYTO", "42");
-        assert_eq!(None, command);
+        let command = CopyFrom::create("");
+        assert!(command.is_none());
 
-        let command = CopyFrom::create("COPYFROM", "");
-        assert_eq!(None, command);
+        let command = CopyFrom::create("a");
+        assert!(command.is_none());
 
-        let command = CopyFrom::create("COPYFROM", "a");
-        assert_eq!(None, command);
+        let command = CopyFrom::create("a1");
+        assert!(command.is_none());
 
-        let command = CopyFrom::create("COPYFROM", "a1");
-        assert_eq!(None, command);
+        let command = CopyFrom::create(" ");
+        assert!(command.is_none());
 
-        let command = CopyFrom::create("COPYFROM", " ");
-        assert_eq!(None, command);
+        let command = CopyFrom::create(" 1 ");
+        assert!(command.is_none());
+    }
+    // endregion
 
-        let command = CopyFrom::create("COPYFROM", " 1 ");
-        assert_eq!(None, command);
+    // region:factory
+    #[test]
+    fn command_test() {
+        assert_eq!("COPYFROM", CopyFromFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = CopyFromFactory.create("42");
+        assert!(command.is_some());
+
+        let command = CopyFromFactory.create("[42]");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = CopyFromFactory.create("");
+        assert!(command.is_none());
+
+        let command = CopyFromFactory.create("");
+        assert!(command.is_none());
+
+        let command = CopyFromFactory.create("a");
+        assert!(command.is_none());
+
+        let command = CopyFromFactory.create("a1");
+        assert!(command.is_none());
+
+        let command = CopyFromFactory.create(" ");
+        assert!(command.is_none());
+
+        let command = CopyFromFactory.create(" 1 ");
+        assert!(command.is_none());
+    }
+    // endregion
+
+    // region:command
     #[test]
     fn execute_succeeds() {
         let mut game_state = GameState {
@@ -204,4 +230,17 @@ mod tests {
         assert!(CopyFrom(CommandValue::Value(42)).requires_label().is_none());
         assert!(CopyFrom(CommandValue::Index(42)).requires_label().is_none());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!(
+            "COPYFROM",
+            CopyFrom(CommandValue::Value(42)).factory().command()
+        );
+        assert_eq!(
+            "COPYFROM",
+            CopyFrom(CommandValue::Index(42)).factory().command()
+        );
+    }
+    // endregion
 }

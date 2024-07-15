@@ -31,26 +31,6 @@ pub enum CommandValue {
 }
 
 pub trait Command: Debug {
-    /// Command
-    ///
-    /// Get command keyword
-    fn command_static() -> &'static str
-    where
-        Self: Sized;
-
-    /// Command On Object
-    ///
-    /// Get command keyword on object
-    fn command(&self) -> &'static str;
-
-    /// Try Parse Instruction
-    ///
-    /// Try to parse a command with args into [Self],
-    /// returns [Some(Self)] if it succeeds, else [None].
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized;
-
     /// Execute
     ///
     /// Execute the command & return the index of the next command.
@@ -76,56 +56,66 @@ pub trait Command: Debug {
     fn requires_label(&self) -> Option<&str> {
         None
     }
+
+    /// Factory
+    ///
+    /// Returns factory for given command.
+    fn factory(&self) -> Box<dyn CommandFactory>;
+}
+
+pub trait CommandFactory {
+    /// Command
+    ///
+    /// Returns command keyword.
+    fn command(&self) -> &'static str;
+
+    /// Create Command
+    ///
+    /// Returns [Some(AnyCommand)] if successful, else [None].
+    fn create(&self, args: &str) -> Option<AnyCommand>;
+}
+
+#[macro_export]
+macro_rules! create_with_args {
+    ($t:ty, $args:expr) => {
+        <$t>::create($args).map(|value| Box::new(value) as $crate::code::commands::AnyCommand)
+    };
 }
 
 #[macro_export]
 macro_rules! commands {
     () => {
         vec![
-            |cmd, val| {
-                <$crate::code::commands::inbox::Inbox as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::outbox::Outbox as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::copy_from::CopyFrom as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::copy_to::CopyTo as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::add::Add as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::sub::Sub as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::bump_up::BumpUp as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::bump_down::BumpDown as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::jump::Jump as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::jump_zero::JumpZero as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
-            |cmd, val| {
-                <$crate::code::commands::jump_negative::JumpNegative as $crate::code::commands::Command>::create(cmd, val)
-                    .map(|cmd| Box::new(cmd) as Box<dyn $crate::code::commands::Command>)
-            },
+            Box::new($crate::code::commands::add::AddFactory),
+            Box::new($crate::code::commands::bump_down::BumpDownFactory),
+            Box::new($crate::code::commands::bump_up::BumpUpFactory),
+            Box::new($crate::code::commands::copy_from::CopyFromFactory),
+            Box::new($crate::code::commands::copy_to::CopyToFactory),
+            Box::new($crate::code::commands::inbox::InboxFactory),
+            Box::new($crate::code::commands::jump::JumpFactory),
+            Box::new($crate::code::commands::jump_negative::JumpNegativeFactory),
+            Box::new($crate::code::commands::jump_zero::JumpZeroFactory),
+            Box::new($crate::code::commands::outbox::OutboxFactory),
+            Box::new($crate::code::commands::sub::SubFactory),
         ]
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn commands_macro_test() {
+        let expected = [
+            "INBOX", "OUTBOX", "ADD", "SUB", "BUMPUP", "BUMPDN", "COPYTO", "COPYFROM", "JUMP",
+            "JUMPN", "JUMPZ",
+        ];
+        let cmds: Vec<Box<dyn CommandFactory>> = commands!();
+
+        assert_eq!(expected.len(), cmds.len());
+        for cmd in cmds {
+            assert!(expected.contains(&cmd.command()));
+        }
+    }
 }

@@ -1,13 +1,14 @@
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 
-use crate::code::{
-    commands::Command,
-    game_state::GameState,
-    program::{Program, RunError},
+use crate::{
+    code::{
+        commands::{AnyCommand, Command, CommandFactory},
+        game_state::GameState,
+        program::{Program, RunError},
+    },
+    create_with_args,
 };
-
-const COMMAND: &str = "INBOX";
 
 #[derive(Clone, PartialEq)]
 pub struct Inbox {
@@ -32,31 +33,17 @@ impl Inbox {
             is_over: RefCell::new(false),
         }
     }
-}
 
-impl Command for Inbox {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        Inbox::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command == COMMAND && args.is_empty() {
-            Some(Self::new())
+    fn create(args: &str) -> Option<Self> {
+        if args.is_empty() {
+            Some(Inbox::new())
         } else {
             None
         }
     }
+}
 
+impl Command for Inbox {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         if game_state.i_input == game_state.input.len() {
             *self.is_over.borrow_mut() = true;
@@ -75,6 +62,22 @@ impl Command for Inbox {
             game_state.i_command + 1
         }
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(InboxFactory)
+    }
+}
+
+pub struct InboxFactory;
+
+impl CommandFactory for InboxFactory {
+    fn command(&self) -> &'static str {
+        "INBOX"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        create_with_args!(Inbox, args)
+    }
 }
 
 #[cfg(test)]
@@ -83,37 +86,52 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, Inbox::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, Inbox::new().command());
-    }
-
+    // region:inbox
     #[test]
     fn create_succeeds() {
-        let command = Inbox::create("INBOX", "").unwrap();
+        let command = Inbox::create("").unwrap();
         assert_eq!(Inbox::new(), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = Inbox::create("OUTBOX", "");
-        assert_eq!(None, command);
+        let command = Inbox::create("a");
+        assert!(command.is_none());
 
-        let command = Inbox::create("INBOX", "a");
-        assert_eq!(None, command);
+        let command = Inbox::create("1");
+        assert!(command.is_none());
 
-        let command = Inbox::create("INBOX", "1");
-        assert_eq!(None, command);
+        let command = Inbox::create(" ");
+        assert!(command.is_none());
+    }
+    // endregion
 
-        let command = Inbox::create("INBOX", " ");
-        assert_eq!(None, command);
+    // region:factory
+    #[test]
+    fn command_test() {
+        assert_eq!("INBOX", InboxFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = InboxFactory.create("");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = InboxFactory.create("a");
+        assert!(command.is_none());
+
+        let command = InboxFactory.create("1");
+        assert!(command.is_none());
+
+        let command = InboxFactory.create(" ");
+        assert!(command.is_none());
+    }
+    // endregion
+
+    // region:command
     #[test]
     fn execute_succeeds() {
         let mut game_state = GameState {
@@ -199,4 +217,10 @@ mod tests {
     fn requires_label_test() {
         assert!(Inbox::new().requires_label().is_none());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!("INBOX", Inbox::new().factory().command());
+    }
+    // endregion
 }

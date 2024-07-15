@@ -1,43 +1,26 @@
 use crate::{
     code::{
-        commands::{Command, CommandValue},
+        commands::{AnyCommand, Command, CommandFactory, CommandValue},
         game_state::GameState,
         program::{
             Program, RunError, {get_from_memory, get_index},
         },
     },
     compiler::compile::compile_command_value,
+    create_with_args,
     game::value::Value,
 };
-
-const COMMAND: &str = "BUMPUP";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BumpUp(pub CommandValue);
 
-impl Command for BumpUp {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        BumpUp::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command != COMMAND {
-            return None;
-        }
-
+impl BumpUp {
+    fn create(args: &str) -> Option<Self> {
         compile_command_value(args).map(BumpUp)
     }
+}
 
+impl Command for BumpUp {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let index = get_index(&self.0, &game_state.memory)?;
         let to_bump = get_from_memory(game_state.memory[index])?;
@@ -53,6 +36,22 @@ impl Command for BumpUp {
             CommandValue::Index(idx) => Some(idx),
         }
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(BumpUpFactory)
+    }
+}
+
+pub struct BumpUpFactory;
+
+impl CommandFactory for BumpUpFactory {
+    fn command(&self) -> &'static str {
+        "BUMPUP"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        create_with_args!(BumpUp, args)
+    }
 }
 
 #[cfg(test)]
@@ -61,49 +60,76 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, BumpUp::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, BumpUp(CommandValue::Value(5)).command());
-    }
-
+    // region:bumpup
     #[test]
     fn create_succeeds() {
-        let command = BumpUp::create("BUMPUP", "42").unwrap();
+        let command = BumpUp::create("42").unwrap();
         assert_eq!(BumpUp(CommandValue::Value(42)), command);
 
-        let command = BumpUp::create("BUMPUP", "[42]").unwrap();
+        let command = BumpUp::create("[42]").unwrap();
         assert_eq!(BumpUp(CommandValue::Index(42)), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = BumpUp::create("INBOX", "");
-        assert_eq!(None, command);
+        let command = BumpUp::create("");
+        assert!(command.is_none());
 
-        let command = BumpUp::create("BUMPDN", "42");
-        assert_eq!(None, command);
+        let command = BumpUp::create("");
+        assert!(command.is_none());
 
-        let command = BumpUp::create("BUMPUP", "");
-        assert_eq!(None, command);
+        let command = BumpUp::create("a");
+        assert!(command.is_none());
 
-        let command = BumpUp::create("BUMPUP", "a");
-        assert_eq!(None, command);
+        let command = BumpUp::create("a1");
+        assert!(command.is_none());
 
-        let command = BumpUp::create("BUMPUP", "a1");
-        assert_eq!(None, command);
+        let command = BumpUp::create(" ");
+        assert!(command.is_none());
 
-        let command = BumpUp::create("BUMPUP", " ");
-        assert_eq!(None, command);
+        let command = BumpUp::create(" 1 ");
+        assert!(command.is_none());
+    }
+    // endregion
 
-        let command = BumpUp::create("BUMPUP", " 1 ");
-        assert_eq!(None, command);
+    // region:factory
+    #[test]
+    fn command_test() {
+        assert_eq!("BUMPUP", BumpUpFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = BumpUpFactory.create("42");
+        assert!(command.is_some());
+
+        let command = BumpUpFactory.create("[42]");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = BumpUpFactory.create("");
+        assert!(command.is_none());
+
+        let command = BumpUpFactory.create("");
+        assert!(command.is_none());
+
+        let command = BumpUpFactory.create("a");
+        assert!(command.is_none());
+
+        let command = BumpUpFactory.create("a1");
+        assert!(command.is_none());
+
+        let command = BumpUpFactory.create(" ");
+        assert!(command.is_none());
+
+        let command = BumpUpFactory.create(" 1 ");
+        assert!(command.is_none());
+    }
+    // endregion
+
+    // region:command
     #[test]
     fn execute_succeeds() {
         let mut game_state = GameState {
@@ -213,4 +239,17 @@ mod tests {
         assert!(BumpUp(CommandValue::Value(42)).requires_label().is_none());
         assert!(BumpUp(CommandValue::Index(42)).requires_label().is_none());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!(
+            "BUMPUP",
+            BumpUp(CommandValue::Value(42)).factory().command()
+        );
+        assert_eq!(
+            "BUMPUP",
+            BumpUp(CommandValue::Index(42)).factory().command()
+        );
+    }
+    // endregion
 }

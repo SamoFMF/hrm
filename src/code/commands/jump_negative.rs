@@ -1,40 +1,23 @@
 use crate::{
     code::{
-        commands::Command,
+        commands::{AnyCommand, Command, CommandFactory},
         game_state::GameState,
         program::{get_acc, Program, RunError},
     },
     compiler::compile::compile_label,
+    create_with_args,
 };
-
-const COMMAND: &str = "JUMPN";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct JumpNegative(pub String);
 
-impl Command for JumpNegative {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        JumpNegative::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command != COMMAND {
-            return None;
-        }
-
+impl JumpNegative {
+    fn create(args: &str) -> Option<Self> {
         compile_label(args).map(JumpNegative)
     }
+}
 
+impl Command for JumpNegative {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         get_acc(game_state.acc).map(|_| ())
     }
@@ -59,6 +42,22 @@ impl Command for JumpNegative {
     fn requires_label(&self) -> Option<&str> {
         Some(&self.0)
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(JumpNegativeFactory)
+    }
+}
+
+pub struct JumpNegativeFactory;
+
+impl CommandFactory for JumpNegativeFactory {
+    fn command(&self) -> &'static str {
+        "JUMPN"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        create_with_args!(JumpNegative, args)
+    }
 }
 
 #[cfg(test)]
@@ -68,46 +67,70 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, JumpNegative::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, JumpNegative(String::from("a")).command());
-    }
-
+    // region:jumpnegative
     #[test]
     fn create_succeeds() {
-        let command = JumpNegative::create("JUMPN", "a").unwrap();
+        let command = JumpNegative::create("a").unwrap();
         assert_eq!(JumpNegative(String::from("a")), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = JumpNegative::create("INBOX", "");
-        assert_eq!(None, command);
+        let command = JumpNegative::create("");
+        assert!(command.is_none());
 
-        let command = JumpNegative::create("JUMP", "a");
-        assert_eq!(None, command);
+        let command = JumpNegative::create("");
+        assert!(command.is_none());
 
-        let command = JumpNegative::create("JUMPN", "");
-        assert_eq!(None, command);
+        let command = JumpNegative::create("1");
+        assert!(command.is_none());
 
-        let command = JumpNegative::create("JUMPN", "1");
-        assert_eq!(None, command);
+        let command = JumpNegative::create("a1");
+        assert!(command.is_none());
 
-        let command = JumpNegative::create("JUMPN", "a1");
-        assert_eq!(None, command);
+        let command = JumpNegative::create(" ");
+        assert!(command.is_none());
 
-        let command = JumpNegative::create("JUMPN", " ");
-        assert_eq!(None, command);
+        let command = JumpNegative::create(" a ");
+        assert!(command.is_none());
+    }
+    // endregion
 
-        let command = JumpNegative::create("JUMPN", " a ");
-        assert_eq!(None, command);
+    // region:factory
+    #[test]
+    fn command_test() {
+        assert_eq!("JUMPN", JumpNegativeFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = JumpNegativeFactory.create("a");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = JumpNegativeFactory.create("");
+        assert!(command.is_none());
+
+        let command = JumpNegativeFactory.create("");
+        assert!(command.is_none());
+
+        let command = JumpNegativeFactory.create("1");
+        assert!(command.is_none());
+
+        let command = JumpNegativeFactory.create("a1");
+        assert!(command.is_none());
+
+        let command = JumpNegativeFactory.create(" ");
+        assert!(command.is_none());
+
+        let command = JumpNegativeFactory.create(" a ");
+        assert!(command.is_none());
+    }
+    // endregion
+
+    // region:command
     #[test]
     fn execute_succeeds() {
         let mut game_state = GameState {
@@ -195,4 +218,10 @@ mod tests {
         let command = JumpNegative(String::from("a"));
         assert_eq!("a", command.requires_label().unwrap());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!("JUMPN", JumpNegative(String::from("a")).factory().command());
+    }
+    // endregion
 }

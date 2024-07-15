@@ -80,7 +80,8 @@ impl Program {
         // Validate commands
         for command in &self.commands {
             trace!("Validating command: {:?}", command);
-            let command_type = command.command();
+            // todo
+            let command_type = command.factory().command();
             if !problem.is_command_available(command_type) {
                 return Err(ProgramError::Validation(
                     ValidationError::CommandNotAvailable(command_type.to_string()),

@@ -1,40 +1,29 @@
 use log::{debug, log_enabled, Level};
 
-use crate::code::{
-    commands::Command,
-    game_state::GameState,
-    program::Program,
-    program::{get_acc, RunError},
+use crate::{
+    code::{
+        commands::{AnyCommand, Command, CommandFactory},
+        game_state::GameState,
+        program::Program,
+        program::{get_acc, RunError},
+    },
+    create_with_args,
 };
-
-const COMMAND: &str = "OUTBOX";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Outbox;
 
-impl Command for Outbox {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        Outbox::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command == COMMAND && args.is_empty() {
+impl Outbox {
+    fn create(args: &str) -> Option<Self> {
+        if args.is_empty() {
             Some(Self)
         } else {
             None
         }
     }
+}
 
+impl Command for Outbox {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let value = get_acc(game_state.acc)?;
 
@@ -59,6 +48,22 @@ impl Command for Outbox {
         game_state.i_output += 1;
         Ok(())
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(OutboxFactory)
+    }
+}
+
+pub struct OutboxFactory;
+
+impl CommandFactory for OutboxFactory {
+    fn command(&self) -> &'static str {
+        "OUTBOX"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        create_with_args!(Outbox, args)
+    }
 }
 
 #[cfg(test)]
@@ -67,37 +72,52 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, Outbox::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, Outbox.command());
-    }
-
+    // region:outbox
     #[test]
     fn create_succeeds() {
-        let command = Outbox::create("OUTBOX", "").unwrap();
+        let command = Outbox::create("").unwrap();
         assert_eq!(Outbox, command);
     }
 
     #[test]
     fn create_fails() {
-        let command = Outbox::create("INBOX", "");
-        assert_eq!(None, command);
+        let command = Outbox::create("a");
+        assert!(command.is_none());
 
-        let command = Outbox::create("OUTBOX", "a");
-        assert_eq!(None, command);
+        let command = Outbox::create("1");
+        assert!(command.is_none());
 
-        let command = Outbox::create("OUTBOX", "1");
-        assert_eq!(None, command);
+        let command = Outbox::create(" ");
+        assert!(command.is_none());
+    }
+    // endregion
 
-        let command = Outbox::create("OUTBOX", " ");
-        assert_eq!(None, command);
+    // region:factory
+    #[test]
+    fn command_test() {
+        assert_eq!("OUTBOX", OutboxFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = OutboxFactory.create("");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = OutboxFactory.create("a");
+        assert!(command.is_none());
+
+        let command = OutboxFactory.create("1");
+        assert!(command.is_none());
+
+        let command = OutboxFactory.create(" ");
+        assert!(command.is_none());
+    }
+    // endregion
+
+    // region:command
     #[test]
     fn execute_succeeds() {
         let mut game_state = GameState {
@@ -188,4 +208,10 @@ mod tests {
     fn requires_label_test() {
         assert!(Outbox.requires_label().is_none());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!("OUTBOX", Outbox.factory().command());
+    }
+    // endregion
 }

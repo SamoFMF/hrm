@@ -1,40 +1,23 @@
 use crate::{
     code::{
-        commands::Command,
+        commands::{AnyCommand, Command, CommandFactory},
         game_state::GameState,
         program::{Program, RunError},
     },
     compiler::compile::compile_label,
+    create_with_args,
 };
-
-const COMMAND: &str = "JUMP";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Jump(pub String);
 
-impl Command for Jump {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        Jump::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command != COMMAND {
-            return None;
-        }
-
+impl Jump {
+    fn create(args: &str) -> Option<Self> {
         compile_label(args).map(Jump)
     }
+}
 
+impl Command for Jump {
     fn execute(&self, _program: &Program, _game_state: &mut GameState) -> Result<(), RunError> {
         Ok(())
     }
@@ -51,6 +34,22 @@ impl Command for Jump {
     fn requires_label(&self) -> Option<&str> {
         Some(&self.0)
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(JumpFactory)
+    }
+}
+
+pub struct JumpFactory;
+
+impl CommandFactory for JumpFactory {
+    fn command(&self) -> &'static str {
+        "JUMP"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        create_with_args!(Jump, args)
+    }
 }
 
 #[cfg(test)]
@@ -60,46 +59,64 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, Jump::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, Jump(String::from("a")).command());
-    }
-
+    // region:jump
     #[test]
     fn create_succeeds() {
-        let command = Jump::create("JUMP", "a").unwrap();
+        let command = Jump::create("a").unwrap();
         assert_eq!(Jump(String::from("a")), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = Jump::create("INBOX", "");
-        assert_eq!(None, command);
+        let command = Jump::create("");
+        assert!(command.is_none());
 
-        let command = Jump::create("JUMPZ", "a");
-        assert_eq!(None, command);
+        let command = Jump::create("1");
+        assert!(command.is_none());
 
-        let command = Jump::create("JUMP", "");
-        assert_eq!(None, command);
+        let command = Jump::create("a1");
+        assert!(command.is_none());
 
-        let command = Jump::create("JUMP", "1");
-        assert_eq!(None, command);
+        let command = Jump::create(" ");
+        assert!(command.is_none());
 
-        let command = Jump::create("JUMP", "a1");
-        assert_eq!(None, command);
+        let command = Jump::create(" a ");
+        assert!(command.is_none());
+    }
+    // endregion
 
-        let command = Jump::create("JUMP", " ");
-        assert_eq!(None, command);
-
-        let command = Jump::create("JUMP", " a ");
-        assert_eq!(None, command);
+    // region:factory
+    #[test]
+    fn command_test() {
+        assert_eq!("JUMP", JumpFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = JumpFactory.create("a");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = JumpFactory.create("");
+        assert!(command.is_none());
+
+        let command = JumpFactory.create("1");
+        assert!(command.is_none());
+
+        let command = JumpFactory.create("a1");
+        assert!(command.is_none());
+
+        let command = JumpFactory.create(" ");
+        assert!(command.is_none());
+
+        let command = JumpFactory.create(" a ");
+        assert!(command.is_none());
+    }
+    // endregion
+
+    // region:command
     #[test]
     fn next_test() {
         let game_state = GameState {
@@ -129,4 +146,10 @@ mod tests {
         let command = Jump(String::from("a"));
         assert_eq!("a", command.requires_label().unwrap());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!("JUMP", Jump(String::from("a")).factory().command());
+    }
+    // endregion
 }

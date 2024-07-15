@@ -1,43 +1,26 @@
 use crate::{
     code::{
-        commands::{Command, CommandValue},
+        commands::{AnyCommand, Command, CommandFactory, CommandValue},
         game_state::GameState,
         program::{
             Program, RunError, {get_from_memory, get_index},
         },
     },
     compiler::compile::compile_command_value,
+    create_with_args,
     game::value::Value,
 };
-
-const COMMAND: &str = "BUMPDN";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BumpDown(pub CommandValue);
 
-impl Command for BumpDown {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        BumpDown::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command != COMMAND {
-            return None;
-        }
-
+impl BumpDown {
+    fn create(args: &str) -> Option<Self> {
         compile_command_value(args).map(BumpDown)
     }
+}
 
+impl Command for BumpDown {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let index = get_index(&self.0, &game_state.memory)?;
         let to_bump = get_from_memory(game_state.memory[index])?;
@@ -53,6 +36,22 @@ impl Command for BumpDown {
             CommandValue::Index(idx) => Some(idx),
         }
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(BumpDownFactory)
+    }
+}
+
+pub struct BumpDownFactory;
+
+impl CommandFactory for BumpDownFactory {
+    fn command(&self) -> &'static str {
+        "BUMPDN"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        create_with_args!(BumpDown, args)
+    }
 }
 
 #[cfg(test)]
@@ -61,49 +60,76 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, BumpDown::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, BumpDown(CommandValue::Value(5)).command());
-    }
-
+    // region:bumpdown
     #[test]
     fn create_succeeds() {
-        let command = BumpDown::create("BUMPDN", "42").unwrap();
+        let command = BumpDown::create("42").unwrap();
         assert_eq!(BumpDown(CommandValue::Value(42)), command);
 
-        let command = BumpDown::create("BUMPDN", "[42]").unwrap();
+        let command = BumpDown::create("[42]").unwrap();
         assert_eq!(BumpDown(CommandValue::Index(42)), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = BumpDown::create("INBOX", "");
-        assert_eq!(None, command);
+        let command = BumpDown::create("");
+        assert!(command.is_none());
 
-        let command = BumpDown::create("BUMPUP", "42");
-        assert_eq!(None, command);
+        let command = BumpDown::create("");
+        assert!(command.is_none());
 
-        let command = BumpDown::create("BUMPDN", "");
-        assert_eq!(None, command);
+        let command = BumpDown::create("a");
+        assert!(command.is_none());
 
-        let command = BumpDown::create("BUMPDN", "a");
-        assert_eq!(None, command);
+        let command = BumpDown::create("a1");
+        assert!(command.is_none());
 
-        let command = BumpDown::create("BUMPDN", "a1");
-        assert_eq!(None, command);
+        let command = BumpDown::create(" ");
+        assert!(command.is_none());
 
-        let command = BumpDown::create("BUMPDN", " ");
-        assert_eq!(None, command);
+        let command = BumpDown::create(" 1 ");
+        assert!(command.is_none());
+    }
+    // endregion
 
-        let command = BumpDown::create("BUMPDN", " 1 ");
-        assert_eq!(None, command);
+    // region:factory
+    #[test]
+    fn command_test() {
+        assert_eq!("BUMPDN", BumpDownFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = BumpDownFactory.create("42");
+        assert!(command.is_some());
+
+        let command = BumpDownFactory.create("[42]");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = BumpDownFactory.create("");
+        assert!(command.is_none());
+
+        let command = BumpDownFactory.create("");
+        assert!(command.is_none());
+
+        let command = BumpDownFactory.create("a");
+        assert!(command.is_none());
+
+        let command = BumpDownFactory.create("a1");
+        assert!(command.is_none());
+
+        let command = BumpDownFactory.create(" ");
+        assert!(command.is_none());
+
+        let command = BumpDownFactory.create(" 1 ");
+        assert!(command.is_none());
+    }
+    // endregion
+
+    // region:command
     #[test]
     fn execute_succeeds() {
         let mut game_state = GameState {
@@ -213,4 +239,17 @@ mod tests {
         assert!(BumpDown(CommandValue::Value(42)).requires_label().is_none());
         assert!(BumpDown(CommandValue::Index(42)).requires_label().is_none());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!(
+            "BUMPDN",
+            BumpDown(CommandValue::Value(42)).factory().command()
+        );
+        assert_eq!(
+            "BUMPDN",
+            BumpDown(CommandValue::Index(42)).factory().command()
+        );
+    }
+    // endregion
 }

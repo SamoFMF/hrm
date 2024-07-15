@@ -2,7 +2,7 @@ use regex::Regex;
 
 use crate::{
     code::{
-        commands::{AnyCommand, CommandValue},
+        commands::{AnyCommand, CommandFactory, CommandValue},
         program::{Program, ProgramBuilder},
     },
     commands,
@@ -30,7 +30,7 @@ pub enum DefineInstruction {
 }
 
 pub struct Compiler {
-    pub commands: Vec<fn(&str, &str) -> Option<AnyCommand>>,
+    pub commands: Vec<Box<dyn CommandFactory>>,
 }
 
 impl Default for Compiler {
@@ -62,7 +62,6 @@ impl Compiler {
         Ok(builder.build())
     }
 
-    // todo: see todo file
     fn compile_instruction(&self, instruction: &str) -> Result<ParsedLine, ParseError> {
         let instruction = instruction.trim();
 
@@ -105,10 +104,12 @@ impl Compiler {
         let regex = Regex::new(r"^([A-Z]+)\s*(.*)$").unwrap();
         if let Some(captures) = regex.captures(instruction) {
             let (_, [command, args]) = captures.extract();
+
             return self
                 .commands
                 .iter()
-                .filter_map(|cmd_create| cmd_create(command, args))
+                .filter(|factory| factory.command() == command)
+                .filter_map(|factory| factory.create(args))
                 .next();
         }
 
@@ -265,7 +266,7 @@ mod tests {
 
         for cmd in ["INBOX", "OUTBOX"] {
             let command = compiler.compile_command(cmd).unwrap();
-            assert_eq!(cmd, command.command());
+            assert_eq!(cmd, command.factory().command());
         }
     }
 
@@ -291,12 +292,12 @@ mod tests {
         for cmd in ["COPYFROM", "COPYTO", "ADD", "SUB", "BUMPUP", "BUMPDN"] {
             let line = format!("{} {}", cmd, value);
             let command = compiler.compile_command(&line).unwrap();
-            assert_eq!(cmd, command.command());
+            assert_eq!(cmd, command.factory().command());
             assert_command_value(&command, CommandValue::Value(value));
 
             let line = format!("{} [{}]", cmd, index);
             let command = compiler.compile_command(&line).unwrap();
-            assert_eq!(cmd, command.command());
+            assert_eq!(cmd, command.factory().command());
             assert_command_value(&command, CommandValue::Index(index));
         }
     }
@@ -322,7 +323,7 @@ mod tests {
         for cmd in ["JUMP", "JUMPZ", "JUMPN"] {
             let line = format!("{} {}", cmd, label);
             let command = compiler.compile_command(&line).unwrap();
-            assert_eq!(cmd, command.command());
+            assert_eq!(cmd, command.factory().command());
             assert_label(&command, label);
         }
     }

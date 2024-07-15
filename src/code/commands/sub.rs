@@ -1,40 +1,23 @@
 use crate::{
     code::{
-        commands::{Command, CommandValue},
+        commands::{AnyCommand, Command, CommandFactory, CommandValue},
         game_state::GameState,
         program::{get_acc, get_from_memory, get_index, Program, RunError},
     },
     compiler::compile::compile_command_value,
+    create_with_args,
 };
-
-const COMMAND: &str = "SUB";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Sub(pub CommandValue);
 
-impl Command for Sub {
-    fn command_static() -> &'static str
-    where
-        Self: Sized,
-    {
-        COMMAND
-    }
-
-    fn command(&self) -> &'static str {
-        Sub::command_static()
-    }
-
-    fn create(command: &str, args: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command != COMMAND {
-            return None;
-        }
-
+impl Sub {
+    fn create(args: &str) -> Option<Self> {
         compile_command_value(args).map(Sub)
     }
+}
 
+impl Command for Sub {
     fn execute(&self, _program: &Program, game_state: &mut GameState) -> Result<(), RunError> {
         let value = get_acc(game_state.acc)?;
         let index = get_index(&self.0, &game_state.memory)?;
@@ -50,6 +33,22 @@ impl Command for Sub {
             CommandValue::Index(idx) => Some(idx),
         }
     }
+
+    fn factory(&self) -> Box<dyn CommandFactory> {
+        Box::new(SubFactory)
+    }
+}
+
+pub struct SubFactory;
+
+impl CommandFactory for SubFactory {
+    fn command(&self) -> &'static str {
+        "SUB"
+    }
+
+    fn create(&self, args: &str) -> Option<AnyCommand> {
+        create_with_args!(Sub, args)
+    }
 }
 
 #[cfg(test)]
@@ -58,49 +57,70 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn command_static_test() {
-        assert_eq!(COMMAND, Sub::command_static());
-    }
-
-    #[test]
-    fn command_test() {
-        assert_eq!(COMMAND, Sub(CommandValue::Value(5)).command());
-    }
-
+    // region:sub
     #[test]
     fn create_succeeds() {
-        let command = Sub::create("SUB", "42").unwrap();
+        let command = Sub::create("42").unwrap();
         assert_eq!(Sub(CommandValue::Value(42)), command);
 
-        let command = Sub::create("SUB", "[42]").unwrap();
+        let command = Sub::create("[42]").unwrap();
         assert_eq!(Sub(CommandValue::Index(42)), command);
     }
 
     #[test]
     fn create_fails() {
-        let command = Sub::create("INBOX", "");
-        assert_eq!(None, command);
+        let command = Sub::create("");
+        assert!(command.is_none());
 
-        let command = Sub::create("ADD", "42");
-        assert_eq!(None, command);
+        let command = Sub::create("a");
+        assert!(command.is_none());
 
-        let command = Sub::create("SUB", "");
-        assert_eq!(None, command);
+        let command = Sub::create("a1");
+        assert!(command.is_none());
 
-        let command = Sub::create("SUB", "a");
-        assert_eq!(None, command);
+        let command = Sub::create(" ");
+        assert!(command.is_none());
 
-        let command = Sub::create("SUB", "a1");
-        assert_eq!(None, command);
+        let command = Sub::create(" 1 ");
+        assert!(command.is_none());
+    }
+    // endregion
 
-        let command = Sub::create("SUB", " ");
-        assert_eq!(None, command);
-
-        let command = Sub::create("SUB", " 1 ");
-        assert_eq!(None, command);
+    // region:factory
+    #[test]
+    fn command_test() {
+        assert_eq!("SUB", SubFactory.command());
     }
 
+    #[test]
+    fn factory_create_succeeds() {
+        let command = SubFactory.create("42");
+        assert!(command.is_some());
+
+        let command = SubFactory.create("[42]");
+        assert!(command.is_some());
+    }
+
+    #[test]
+    fn factory_create_fails() {
+        let command = SubFactory.create("");
+        assert!(command.is_none());
+
+        let command = SubFactory.create("a");
+        assert!(command.is_none());
+
+        let command = SubFactory.create("a1");
+        assert!(command.is_none());
+
+        let command = SubFactory.create(" ");
+        assert!(command.is_none());
+
+        let command = SubFactory.create(" 1 ");
+        assert!(command.is_none());
+    }
+    // endregion
+
+    // region:command
     #[test]
     fn execute_succeeds() {
         let mut game_state = GameState {
@@ -206,4 +226,11 @@ mod tests {
         assert!(Sub(CommandValue::Value(42)).requires_label().is_none());
         assert!(Sub(CommandValue::Index(42)).requires_label().is_none());
     }
+
+    #[test]
+    fn factory_test() {
+        assert_eq!("SUB", Sub(CommandValue::Value(42)).factory().command());
+        assert_eq!("SUB", Sub(CommandValue::Index(42)).factory().command());
+    }
+    // endregion
 }
