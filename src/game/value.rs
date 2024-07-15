@@ -12,14 +12,14 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn add(self, rhs: Self) -> Option<Self> {
+    pub fn hrm_add(self, rhs: Self) -> Option<Self> {
         match (self, rhs) {
             (Value::Int(lhs), Value::Int(rhs)) => Some(Value::Int(lhs + rhs)),
             _ => None,
         }
     }
 
-    pub fn sub(self, rhs: Self) -> Option<Self> {
+    pub fn hrm_sub(self, rhs: Self) -> Option<Self> {
         match (self, rhs) {
             (Value::Int(lhs), Value::Int(rhs)) => Some(Value::Int(lhs - rhs)),
             (Value::Char(lhs), Value::Char(rhs)) => Some(Value::Int(lhs as i32 - rhs as i32)),
@@ -50,7 +50,7 @@ impl Add for Value {
     type Output = Value;
 
     fn add(self, rhs: Self) -> Self::Output {
-        self.add(rhs).expect("Cannot add INT & CHAR")
+        self.hrm_add(rhs).expect("Cannot add INT & CHAR")
     }
 }
 
@@ -58,13 +58,13 @@ impl Sub for Value {
     type Output = Value;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        self.sub(rhs).expect("Cannot sub INT & CHAR")
+        self.hrm_sub(rhs).expect("Cannot sub INT & CHAR")
     }
 }
 
-impl Into<String> for Value {
-    fn into(self) -> String {
-        match self {
+impl From<Value> for String {
+    fn from(value: Value) -> Self {
+        match value {
             Value::Int(val) => val.to_string(),
             Value::Char(val) => val.to_string(),
         }
@@ -75,7 +75,7 @@ impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Int(val) => f.write_str(val.to_string().as_str()),
-            Value::Char(val) => f.write_char(*val as char),
+            Value::Char(val) => f.write_char(*val),
         }
     }
 }
@@ -107,7 +107,7 @@ mod tests {
     fn add_ints() {
         let a = Value::Int(-5);
         let b = Value::Int(10);
-        assert_eq!(Value::Int(5), a.add(b).unwrap());
+        assert_eq!(Value::Int(5), a.hrm_add(b).unwrap());
     }
 
     #[test]
@@ -121,7 +121,7 @@ mod tests {
     fn add_chars() {
         let a = Value::Char('A');
         let b = Value::Char('B');
-        assert_eq!(None, a.add(b));
+        assert_eq!(None, a.hrm_add(b));
     }
 
     #[test]
@@ -134,11 +134,11 @@ mod tests {
     fn add_mixed() {
         let a = Value::Int(0);
         let b = Value::Char('0');
-        assert_eq!(None, a.add(b));
+        assert_eq!(None, a.hrm_add(b));
 
         let a = Value::Int(0);
         let b = Value::Char('0');
-        assert_eq!(None, b.add(a));
+        assert_eq!(None, b.hrm_add(a));
     }
 
     #[test]
@@ -153,7 +153,7 @@ mod tests {
     fn sub_ints() {
         let a = Value::Int(-5);
         let b = Value::Int(10);
-        assert_eq!(Value::Int(-15), a.sub(b).unwrap());
+        assert_eq!(Value::Int(-15), a.hrm_sub(b).unwrap());
     }
 
     #[test]
@@ -167,7 +167,7 @@ mod tests {
     fn sub_chars() {
         let a = Value::Char('A');
         let b = Value::Char('B');
-        assert_eq!(Value::Int(-1), a.sub(b).unwrap());
+        assert_eq!(Value::Int(-1), a.hrm_sub(b).unwrap());
     }
 
     #[test]
@@ -181,11 +181,11 @@ mod tests {
     fn sub_mixed() {
         let a = Value::Int(0);
         let b = Value::Char('0');
-        assert_eq!(None, a.sub(b));
+        assert_eq!(None, a.hrm_sub(b));
 
         let a = Value::Int(0);
         let b = Value::Char('0');
-        assert_eq!(None, b.sub(a));
+        assert_eq!(None, b.hrm_sub(a));
     }
 
     #[test]
