@@ -8,6 +8,8 @@ use crate::{
     commands,
 };
 
+const COMMAND_REGEX: &str = r"^([A-Z]+)(?:\s+(.*)|(\s*))$"; // Used with trimmed string
+
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
     IllegalLine(String),
@@ -100,8 +102,7 @@ impl Compiler {
     ///
     /// Expects instruction to be trimmed.
     fn compile_command(&self, instruction: &str) -> Option<AnyCommand> {
-        // todo: JUMPa is accepted - assert whitespace between command & arg
-        let regex = Regex::new(r"^([A-Z]+)\s*(.*)$").unwrap();
+        let regex = Regex::new(COMMAND_REGEX).unwrap();
         if let Some(captures) = regex.captures(instruction) {
             let (_, [command, args]) = captures.extract();
 
@@ -212,6 +213,41 @@ pub fn compile_label(label: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn valid_commands_no_args() {
+        let regex = Regex::new(COMMAND_REGEX).unwrap();
+        for cmd in ["A", "CMD", "COMMAND"] {
+            let capture = regex.captures(cmd);
+            assert!(capture.is_some());
+            let (_, [command, args]) = capture.unwrap().extract();
+            assert_eq!(cmd, command);
+            assert_eq!("", args);
+        }
+    }
+
+    #[test]
+    fn valid_commands_with_args() {
+        let regex = Regex::new(COMMAND_REGEX).unwrap();
+        let cmds = [("A", "arg"), ("CMD", " arg1 arg2"), ("COMMAND", "     arg")];
+        for (cmd, args) in cmds {
+            let line = format!("{} {}", cmd, args);
+            let capture = regex.captures(&line);
+            assert!(capture.is_some());
+            let (_, [command, arguments]) = capture.unwrap().extract();
+            assert_eq!(cmd, command);
+            assert_eq!(args.trim(), arguments);
+        }
+    }
+
+    #[test]
+    fn invalid_commands() {
+        let regex = Regex::new(COMMAND_REGEX).unwrap();
+        let cmds = ["CMDarg", "CMD1", "cmd", " B"];
+        for cmd in cmds {
+            assert!(regex.captures(cmd).is_none());
+        }
+    }
 
     #[test]
     fn compile_comment_succeeds() {
